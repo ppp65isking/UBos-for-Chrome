@@ -1,0 +1,12 @@
+{
+  "name": "UBos remote engine",
+  "postCreateCommand": "npm --prefix remote-runner install --no-audit --no-fund",
+  "postStartCommand": "bash remote-runner/start.sh",
+  "forwardPorts": [7681],
+  "portsAttributes": {
+    "7681": {
+      "label": "UBos private remote terminal",
+      "onAutoForward": "silent"
+    }
+  }
+}
