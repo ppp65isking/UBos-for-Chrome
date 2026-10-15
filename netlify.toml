@@ -1,0 +1,19 @@
+[build]
+  publish = "."
+
+[build.processing.html]
+  pretty_urls = false
+
+[[headers]]
+  for = "/runtime/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/runtime"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Cache-Control = "no-cache"
