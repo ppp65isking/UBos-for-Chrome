@@ -3,7 +3,21 @@ export function codespaceOrigin(name, domain) {
   if (!/^[a-z0-9-]+$/.test(name || '') || domain !== 'app.github.dev') throw new Error('A supported GitHub Codespace is required.');
   return `https://${name}-7681.${domain}`;
 }
-export function sameOrigin(value, expected) { return typeof value === 'string' && value === expected; }
+let lastOriginLog = 0;
+function diagnosticOrigin(value) {
+  if (typeof value !== 'string') return '(missing)';
+  if (value === 'null') return '(opaque/null)';
+  try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.origin : '(non-HTTP origin)'; }
+  catch { return '(invalid origin)'; }
+}
+export function sameOrigin(value, expected) {
+  const allowed = typeof value === 'string' && value === expected;
+  if (!allowed && Date.now() - lastOriginLog >= 5000) {
+    lastOriginLog = Date.now();
+    console.warn('[UBos origin diagnostic] ' + JSON.stringify({ expected: diagnosticOrigin(expected), received: diagnosticOrigin(value) }));
+  }
+  return allowed;
+}
 export function equalSecret(value, secret) {
   if (typeof value !== 'string' || value.length > 256) return false;
   const a = Buffer.from(value), b = Buffer.from(secret);
