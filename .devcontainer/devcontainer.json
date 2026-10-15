@@ -1,12 +1,27 @@
 {
   "name": "UBos remote engine",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "webPort": "6080",
+      "vncPort": "5901"
+    }
+  },
   "postCreateCommand": "npm --prefix remote-runner install --no-audit --no-fund",
   "postStartCommand": "bash remote-runner/start.sh",
-  "forwardPorts": [7681],
+  "forwardPorts": [7681, 6080],
   "portsAttributes": {
     "7681": {
       "label": "UBos private remote terminal",
       "onAutoForward": "silent"
+    },
+    "6080": {
+      "label": "UBos Linux desktop preview - keep Private",
+      "onAutoForward": "silent"
+    },
+    "5901": {
+      "label": "Internal VNC - do not forward",
+      "onAutoForward": "ignore"
     }
   }
 }
