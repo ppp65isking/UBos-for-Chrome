@@ -1,0 +1,7 @@
+# Codespaces origin rewrite fix
+
+A live request arrived with Origin http://localhost:7681 rather than the public HTTPS origin. The transport guard accepts only those two exact origins for this Codespaces-only runner. Origin alone is no longer the authorization boundary: every POST requires a random server-instance CSRF token obtained through a same-origin bootstrap fetch and sent in a custom header. No cross-origin read/preflight permissions are added. Login still requires the random connection code; other operations require the valid session cookie.
+
+WebSocket upgrades additionally require a 30-second, single-use, session-bound ticket obtained by an authenticated, CSRF-verified POST. Tickets are passed through the WebSocket subprotocol header, not a URL, and are not selected as the negotiated protocol or logged. Private-port enforcement, loopback binding, cookie protections and terminal limits remain enabled. This remains an owner-only Codespaces terminal, not a multi-user isolation service.
+
+Stop npm start with Ctrl+C, run git pull --ff-only and npm test from remote-runner, then npm start. Reload the terminal page and enter the newly printed connection code there; never share codes, tickets, cookies or full request headers in chat. No new dependencies are required. JavaScript syntax and ten unit tests were checked before approval; live browser/proxy behavior still needs verification.
