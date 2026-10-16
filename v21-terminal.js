@@ -21,6 +21,28 @@ const links=document.createElement('nav');links.id='u22-quick';links.setAttribut
 for(const [label,id]of [['Terminal','terminal'],['UB Store','ub-store'],['Privacy locks','settings'],['Lazer Dodge','game-lazer']])btn(label,()=>{if(!apps[id]){tell('Feature module is not ready. Reload UBos if this persists.');return}const w=openApp(id);if(label==='Privacy locks')settingsUI(w.querySelector('.body'),'Privacy locks')},links);
 document.querySelector('#desk').append(links);
 const attached=new WeakSet(),base=new URL('.',location.href);
+function installV86Compatibility(win){
+ if(win.ubosV86Compatibility221)return;
+ let nativeStarter=win.V86Starter;
+ const native=()=>typeof win.V86==='function'?win.V86:typeof nativeStarter==='function'?nativeStarter:null;
+ function adapt(instance,name){
+  const original=instance[name];if(typeof original!=='function')return;
+  instance[name]=function(...args){
+   const callback=typeof args[args.length-1]==='function'?args.pop():null;
+   const operation=new Promise((resolve,reject)=>{let settled=false;
+    const done=(error,value)=>{if(settled)return;settled=true;if(error){reject(error);return}if(name==='save_state'&&Object.prototype.toString.call(value)!=='[object ArrayBuffer]'&&!ArrayBuffer.isView(value)){reject(new Error('v86 returned an invalid VM state'));return}resolve(value)};
+    try{const result=Reflect.apply(original,instance,[...args,done]);if(result&&typeof result.then==='function')Promise.resolve(result).then(value=>done(null,value),done);else if(result!==undefined)done(null,result)}catch(e){done(e)}
+   });
+   if(callback){operation.then(value=>callback(null,value),error=>callback(error));return}
+   return operation;
+  };
+ }
+ function Compatible(options){const Constructor=native();if(!Constructor)throw new Error('v86 library has not loaded a supported constructor (V86 or V86Starter).');const instance=Reflect.construct(Constructor,[options]);adapt(instance,'save_state');adapt(instance,'create_file');return instance}
+ const descriptor=Object.getOwnPropertyDescriptor(win,'V86Starter');
+ if(descriptor&&!descriptor.configurable){if(!descriptor.writable||!native())throw new Error('Cannot install the v86 compatibility adapter. Reopen Terminal.');win.V86Starter=Compatible}
+ else Object.defineProperty(win,'V86Starter',{configurable:true,enumerable:true,get(){return native()?Compatible:undefined},set(value){if(value!==Compatible)nativeStarter=value}});
+ win.ubosV86Compatibility221=true;
+}
 function attach(frame){
  if(!frame)return;
  const setup=()=>{try{
@@ -30,7 +52,7 @@ function attach(frame){
   attached.add(doc);let ticks=0;
   const timer=setInterval(()=>{
    if(!frame.isConnected||frame.contentDocument!==doc){clearInterval(timer);return}
-   if(win.terminal195Ready){clearInterval(timer);const s=doc.createElement('script');s.src='terminal-v21.js?fix=22-layout1';s.onerror=()=>tell('Terminal 2.2 UI failed to load. The base Terminal is still available.');doc.body.append(s)}
+   if(win.terminal195Ready){clearInterval(timer);try{installV86Compatibility(win);const s=doc.createElement('script');s.src='terminal-v21.js?fix=221-v86compat1';s.onerror=()=>tell('Terminal 2.21 UI failed to load. The base Terminal is still available.');doc.body.append(s)}catch(e){tell('v86 compatibility setup failed: '+e.message)}}
    else if(++ticks>=3000){clearInterval(timer);tell('Terminal initialization timed out. Reopen Terminal to retry.')}
   },20);
  }catch(e){tell('Terminal attachment failed: '+e.message)}};
