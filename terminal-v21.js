@@ -1,153 +1,39 @@
 (()=>{
-'use strict';
-if(window.ubosTerminal21)return;window.ubosTerminal21=true;
-const q=s=>document.querySelector(s);
-const header=q('header'),title=header.querySelector('strong');
-title.textContent='>_ Terminal · 2.2';
-const CACHE='ubos.linux21.v86-0.5.44-buildroot68';
-const MAX_ASSET=64*1024*1024,MAX_IMPORT=32*1024*1024;
-const ASSETS={
- libv86:['v86 library','https://cdn.jsdelivr.net/npm/v86@0.5.44/build/libv86.js'],
- wasm:['v86 WebAssembly','https://cdn.jsdelivr.net/npm/v86@0.5.44/build/v86.wasm'],
- seabios:['SeaBIOS','https://cdn.jsdelivr.net/gh/copy/v86@94faf3d6b19ecabc53a4010aaa24252fa6a162e2/bios/seabios.bin'],
- vgabios:['VGA BIOS','https://cdn.jsdelivr.net/gh/copy/v86@94faf3d6b19ecabc53a4010aaa24252fa6a162e2/bios/vgabios.bin'],
- kernel:['Buildroot kernel','https://copy.sh/v86/images/buildroot-bzimage68.bin']
-};
-const style=document.createElement('style');
-style.textContent=`#ubos-tabs{display:flex;gap:6px;padding:8px 12px 0}
-#ubos-tabs button{border-radius:10px 10px 0 0;border-bottom:0;padding:6px 10px;font-size:12px}
-#ubos-tabs button[aria-selected=true]{background:#ffffff1f;border-color:#7fd1ff80}
-.ubos-pane{flex:1;min-height:0;display:flex;flex-direction:column}
-#ubos-linux{gap:8px;padding:10px 12px;overflow:auto}
-.ubos-card{border:1px solid #ffffff20;background:#ffffff08;border-radius:12px;padding:10px 12px}
-.ubos-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-.ubos-muted{opacity:.72;margin:4px 0 0;font-size:12px}
-.ubos-progress{height:6px;border-radius:99px;background:#ffffff18;overflow:hidden;margin-top:6px}
-.ubos-progress>div{height:100%;width:0;background:#7fd1ff;transition:width .2s}
-.ubos-log{flex:1;min-height:110px;margin:0;padding:8px;background:#0d1420;border:1px solid #ffffff20;border-radius:10px;overflow:auto;white-space:pre-wrap;font-size:12px}
-.ubos-serial{height:170px;flex:0 0 auto;background:#101827}
-.ubos-chip{display:inline-block;padding:2px 6px;border-radius:99px;background:#ffffff12;font-size:11px}
-.ubos-chip[data-state=ready]{background:#1d5c3a}
-.ubos-chip[data-state=error]{background:#6b2430}
-.ubos-code{display:block;margin-top:6px;padding:6px;background:#ffffff0d;border-radius:8px;overflow-wrap:anywhere;font-size:12px}
-.ubos-danger{color:#ffb4bd}
-.ubos-uninstall{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.ubos-uninstall .ubos-row{gap:4px}
-#ubos-linux button,.ubos-uninstall button{padding:5px 9px;font-size:12px;border-radius:10px}`;
-document.head.append(style);
-const output=q('#output'),form=q('#form');
-const tools=[...document.querySelectorAll('div')].find(n=>n.style?.cssText?.includes('align-items:center'));
-const host=[...document.querySelectorAll('div')].find(n=>n.getAttribute('aria-label')==='Interactive Node terminal');
-const tabs=document.createElement('nav');tabs.id='ubos-tabs';
-const nodeBtn=Object.assign(document.createElement('button'),{type:'button',textContent:'Terminal + Node/npm'});
-const linuxBtn=Object.assign(document.createElement('button'),{type:'button',textContent:'Linux Beta'});
-nodeBtn.setAttribute('aria-selected','true');tabs.append(nodeBtn,linuxBtn);
-const nodePane=document.createElement('section');nodePane.className='ubos-pane';
-nodePane.append(output,tools,host,form);
-const uninstallCard=document.createElement('div');uninstallCard.className='ubos-card ubos-uninstall';
-const uninstallHead=document.createElement('div');uninstallHead.className='ubos-row';
-const uninstallTitle=document.createElement('strong');uninstallTitle.textContent='Installed Node CLIs';
-uninstallHead.append(uninstallTitle);
-const uninstallRow=document.createElement('div');uninstallRow.className='ubos-row';
-uninstallCard.append(uninstallHead,uninstallRow);
-nodePane.insertBefore(uninstallCard,form);
-const linuxPane=document.createElement('section');linuxPane.className='ubos-pane';linuxPane.id='ubos-linux';linuxPane.hidden=true;
-header.after(tabs,nodePane,linuxPane);
-function select(node){const isNode=node==='node';nodeBtn.setAttribute('aria-selected',isNode);linuxBtn.setAttribute('aria-selected',!isNode);nodePane.hidden=!isNode;linuxPane.hidden=isNode}
-nodeBtn.onclick=()=>select('node');linuxBtn.onclick=()=>select('linux');
-const statusCard=document.createElement('div');statusCard.className='ubos-card';
-const chips=document.createElement('div');chips.className='ubos-row';
-const vmChip=Object.assign(document.createElement('span'),{className:'ubos-chip',textContent:'VM stopped'});vmChip.dataset.state='idle';
-const netChip=Object.assign(document.createElement('span'),{className:'ubos-chip',textContent:'Guest networking: off'});
-const cacheChip=Object.assign(document.createElement('span'),{className:'ubos-chip',textContent:'Runtime: not downloaded'});
-chips.append(vmChip,netChip,cacheChip);
-const statusText=document.createElement('p');statusText.className='ubos-muted';statusText.textContent='Linux Beta is browser-local and optional. Runtime files download only when you press Start.';
-const progress=document.createElement('div');progress.className='ubos-progress';const fill=document.createElement('div');progress.append(fill);
-statusCard.append(chips,statusText,progress);
-const actionCard=document.createElement('div');actionCard.className='ubos-card';
-const actions=document.createElement('div');actions.className='ubos-row';
-const fileCard=document.createElement('div');fileCard.className='ubos-card';
-const fileRow=document.createElement('div');fileRow.className='ubos-row';
-const fileInput=document.createElement('input');fileInput.type='file';fileInput.multiple=true;
-const importNote=document.createElement('p');importNote.className='ubos-muted';importNote.textContent='Import trusted files into the guest 9p share. Maximum 32 MiB per file.';
-const mount=document.createElement('code');mount.className='ubos-code';mount.textContent='mkdir -p /mnt/ubos; mount -t 9p -o trans=virtio,version=9p2000.L host9p /mnt/ubos';
-fileCard.append(fileRow,importNote,mount);
-const log=document.createElement('pre');log.className='ubos-log';
-const serial=document.createElement('pre');serial.className='ubos-log ubos-serial';
-const commandCard=document.createElement('div');commandCard.className='ubos-card';
-const commands=document.createElement('div');commands.className='ubos-row';
-commandCard.append(commands);
-linuxPane.append(statusCard,actionCard,fileCard,commandCard,log,serial);
-function say(text,cls){const line=document.createElement('div');if(cls)line.className=cls;line.textContent=text;log.append(line);log.scrollTop=log.scrollHeight}
-function setVM(state,text){vmChip.dataset.state=state;vmChip.textContent=text}
-function setProgress(value,text){fill.style.width=Math.max(0,Math.min(100,value))+'%';statusText.textContent=text}
-function button(parent,text,fn,className){const b=document.createElement('button');b.type='button';b.textContent=text;if(className)b.className=className;b.onclick=async()=>{b.disabled=true;try{await fn()}catch(e){say('Error: '+e.message,'error')}finally{b.disabled=false}};parent.append(b);return b}
-let emulator=null,paused=false,state=null,downloads=null;
-async function cacheStatus(){try{const cache=await caches.open(CACHE);const found=(await Promise.all(Object.values(ASSETS).map(([,url])=>cache.match(url)))).filter(Boolean).length;cacheChip.textContent='Runtime: '+found+'/5 cached'}catch(e){cacheChip.textContent='Runtime cache unavailable'}}
-function abortDownloads(){downloads?.abort();downloads=null}
-async function fetchAsset([label,url],onProgress){
- const cache=await caches.open(CACHE);
- const hit=await cache.match(url);
- if(hit)return URL.createObjectURL(await hit.blob());
- downloads=new AbortController();
- const response=await fetch(url,{signal:downloads.signal,mode:'cors'});
- if(!response.ok)throw new Error(label+' download failed: '+response.status);
- const declared=Number(response.headers.get('content-length'))||0;
- if(declared>MAX_ASSET)throw new Error(label+' exceeds the 64 MiB limit');
- const reader=response.body?.getReader();
- if(!reader){const blob=await response.blob();if(blob.size>MAX_ASSET)throw new Error(label+' exceeds the 64 MiB limit');await cache.put(url,new Response(blob));return URL.createObjectURL(blob)}
- const parts=[];let received=0;
- for(;;){const{done,value}=await reader.read();if(done)break;received+=value.byteLength;if(received>MAX_ASSET){downloads.abort();throw new Error(label+' exceeds the 64 MiB limit')}parts.push(value);onProgress(received,declared,label)}
- const blob=new Blob(parts,{type:response.headers.get('content-type')||'application/octet-stream'});
- await cache.put(url,new Response(blob));
- return URL.createObjectURL(blob);
-}
-async function boot(){
- if(emulator){say('Linux VM is already running.');return}
- setProgress(1,'Preparing pinned Linux Beta downloads…');
- const urls={};let index=0;const names=Object.keys(ASSETS);
- for(const[name,asset]of Object.entries(ASSETS)){
-  urls[name]=await fetchAsset(asset,(received,total,label)=>{
-   const portion=total?received/total:.5;
-   setProgress(1+(index+portion)/names.length*94,'Downloading '+label+'…');
-  });
-  index++;cacheStatus();
- }
- setProgress(96,'Starting Buildroot…');
- await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=urls.libv86;s.onload=resolve;s.onerror=()=>reject(new Error('v86 library could not load'));document.head.append(s)});
- if(typeof V86!=='function')throw new Error('v86 did not expose its expected API');
- emulator=new V86({wasm_path:urls.wasm,memory_size:128*1024*1024,vga_memory_size:8*1024*1024,bios:{url:urls.seabios},vga_bios:{url:urls.vgabios},bzimage:{url:urls.kernel},cmdline:'console=ttyS0 tsc=reliable',filesystem:{},autostart:true,disable_speaker:true});
- emulator.add_listener('emulator-ready',()=>{paused=false;setVM('ready','VM running');setProgress(100,'Linux Beta running. Guest networking is off.');say('Buildroot is ready. Guest changes are temporary unless you download a VM state.')});
- emulator.add_listener('download-error',event=>say('Runtime error: '+(event?.message||event),'error'));
- emulator.add_listener('serial0-output-byte',byte=>{serial.textContent+=String.fromCharCode(byte);if(serial.textContent.length>40000)serial.textContent=serial.textContent.slice(-30000);serial.scrollTop=serial.scrollHeight});
-}
-function requireVM(){if(!emulator)throw new Error('Start the Linux VM first');return emulator}
-function send(text){requireVM().serial_send(text)}
-function runCommand(line){const input=form.querySelector('#input');if(!input)return;input.value=line;form.requestSubmit()}
-function refreshUninstall(){uninstallRow.replaceChildren();const names=new Set();for(const[id]of Object.entries(parent.apps||{}))if(id.startsWith('npm-')){try{names.add(decodeURIComponent(id.slice(4)))}catch{}}if(!names.size){const empty=document.createElement('span');empty.className='ubos-muted';empty.textContent='No installed Node CLIs.';uninstallRow.append(empty)}for(const name of names)button(uninstallRow,'Uninstall '+name,()=>runCommand('npm uninstall '+JSON.stringify(name)))}
-button(uninstallHead,'Refresh',refreshUninstall);
-refreshUninstall();
-button(actions,'Start',async()=>{if(paused){emulator.run();paused=false;setVM('ready','VM running');say('VM resumed.');return}await boot()});
-button(actions,'Pause',()=>{const vm=requireVM();if(paused)throw new Error('VM is already paused');vm.stop();paused=true;setVM('idle','VM paused');say('VM paused. Guest memory remains in this tab.')});
-button(actions,'Resume',()=>{const vm=requireVM();if(!paused)throw new Error('VM is already running');vm.run();paused=false;setVM('ready','VM running');say('VM resumed.')});
-button(actions,'Stop VM',()=>{const vm=requireVM();try{vm.destroy()}catch(e){vm.stop()}emulator=null;paused=false;setVM('idle','VM stopped');setProgress(0,'VM stopped. Cached runtime files remain available.');say('VM stopped. Guest filesystem changes were temporary.')});
-button(actions,'Download VM state',async()=>{const vm=requireVM();state=await vm.save_state();const url=URL.createObjectURL(new Blob([state],{type:'application/octet-stream'}));const a=document.createElement('a');a.href=url;a.download='ubos-linux21-vm-state.bin';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);say('VM state downloaded. It may contain private guest data.')});
-button(actions,'Remove downloads',async()=>{if(emulator)throw new Error('Stop the VM first');const cache=await caches.open(CACHE);for(const[,url]of Object.entries(ASSETS))await cache.delete(url);setProgress(0,'Runtime downloads removed.');cacheStatus();say('Removed cached Linux Beta runtime files.')});
-button(actions,'Cancel downloads',()=>{if(!downloads)throw new Error('No download is active');abortDownloads();setProgress(0,'Download cancelled.');say('Active runtime download cancelled.')});
-fileInput.onchange=async()=>{
- const vm=requireVM();
- for(const f of fileInput.files){
-  if(f.size>MAX_IMPORT){say('Skipped '+f.name+': over the 32 MiB import limit.','error');continue}
-  const bytes=new Uint8Array(await f.arrayBuffer());
-  vm.create_file('/ubos-import-'+f.name.replace(/[^\w.-]+/g,'_'),bytes);
-  say('Imported '+f.name+' into the 9p shared folder.');
- }
- fileInput.value='';
-};
-fileRow.append(fileInput);
-for(const command of ['uname -a','pwd','ls -la','busybox --list','df -h'])button(commands,command,()=>send(command+'\n'));
-button(commands,'Ctrl+C',()=>send(String.fromCharCode(3)));
-say('Linux Beta uses pinned v86 0.5.44 and Buildroot. It has no guest networking and does not provide apt, apk, GitHub CLI installation, or universal package compatibility.');
-say('Guest changes are temporary unless you download a VM state. VM states may contain private guest data.');
-cacheStatus();
+'use strict';if(window.ubosTerminal22)return;window.ubosTerminal22=true;
+const $=s=>document.querySelector(s),make=(tag,text,parent)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.append(n);return n};
+const header=$('header');header.querySelector('strong').textContent='>_ Terminal · 2.2';
+const style=make('style');style.textContent=`[hidden]{display:none!important}body{font-size:13px}button{font:inherit;padding:6px 10px;border-radius:9px;min-height:32px}header{padding:8px 12px}#u22-tabs{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid #ffffff20}#u22-tabs [aria-selected=true]{background:#355078}.u22-pane{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}.u22-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 12px}.u22-note{padding:0 12px;font-size:12px;line-height:1.5;opacity:.8}.u22-card{margin:8px 12px;padding:10px;border:1px solid #ffffff20;border-radius:12px}.u22-card summary{cursor:pointer}.u22-status{padding:6px 12px;margin:0;font-size:12px}.u22-serial{flex:1;min-height:160px;margin:8px 12px;padding:12px;overflow:auto;background:#0b1421;border:1px solid #ffffff20;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere}.u22-progress{width:160px;height:8px}.u22-input{display:flex;gap:6px;padding:8px 12px}.u22-input input{flex:1;min-width:0;border:1px solid #ffffff30;background:#ffffff09;border-radius:8px}.u22-packages{max-height:150px;overflow:auto}.u22-packages>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0}.u22-packages code{overflow-wrap:anywhere}#form{padding:8px 12px}#node-tools{padding:6px 12px!important}`;document.head.append(style);
+const tabs=make('nav');tabs.id='u22-tabs';tabs.setAttribute('aria-label','Terminal mode');const node=make('section');node.className='u22-pane';node.id='u22-node';const linux=make('section');linux.className='u22-pane';linux.hidden=true;
+for(const el of [$('#output'),$('#node-tools'),$('#node-tty'),$('#form')])if(el)node.append(el);
+header.after(tabs,node,linux);
+function button(parent,text,fn){const b=make('button',text,parent);b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn()}catch(e){print(e.message,'error');status.textContent=e.message}finally{b.disabled=false}};return b}
+const nb=button(tabs,'Terminal + Node/npm',()=>select(false)),lb=button(tabs,'Linux Beta',()=>select(true));
+function select(isLinux){node.hidden=isLinux;linux.hidden=!isLinux;nb.setAttribute('aria-selected',String(!isLinux));lb.setAttribute('aria-selected',String(isLinux))}
+const packages=make('details',undefined,node);packages.className='u22-card';make('summary','Manage Node packages',packages);const pr=make('div',undefined,packages);pr.className='u22-bar';const list=make('div',undefined,packages);list.className='u22-packages';const packageNote=make('p','Lists direct workspace dependencies, including libraries. CLI commands can belong to differently named packages. Remote Linux packages are separate.',packages);packageNote.className='u22-note';
+const api=parent.ubosNode;let reading=false;
+const validName=n=>/^(?:@[a-z0-9._-]+\/)?[a-z0-9][a-z0-9._-]*$/i.test(n)&&!n.startsWith('-');
+async function refresh(){if(reading)return;reading=true;try{list.replaceChildren();if(!api.status().ready){make('p','Start Node to inspect saved workspace packages.',list);return}if(api.status().busy){make('p','Wait for the active Node operation to finish.',list);return}const pkg=JSON.parse(await api.read('package.json'));const names=[...new Set([...Object.keys(pkg.dependencies||{}),...Object.keys(pkg.devDependencies||{}),...Object.keys(pkg.optionalDependencies||{})])].filter(validName).sort();for(const name of names){const row=make('div',undefined,list);make('code',name,row);button(row,'Uninstall',async()=>{if(busy||api.status().busy)throw new Error('Stop the current Node process first.');if(!confirm('Uninstall '+name+' from this Node workspace? This changes package.json and installed dependencies.'))return;await run('npm uninstall --ignore-scripts -- '+JSON.stringify(name));await refresh()})}if(!names.length)make('p','No direct dependencies in package.json.',list)}catch(e){make('p','Package list unavailable: '+e.message,list)}finally{reading=false}}
+button(pr,'Start Node',async()=>{await run('node-start');await refresh()});button(pr,'Refresh',refresh);packages.addEventListener('toggle',()=>{if(packages.open)refresh()});
+const stateListener=()=>{if(packages.open&&!api.status().busy)refresh()};parent.addEventListener('ubos-node-state',stateListener);
+const controls=make('div',undefined,linux);controls.className='u22-bar';const status=make('p','Optional local Buildroot VM. Start downloads the runtime; cached files are reused.',linux);status.className='u22-status';status.setAttribute('role','status');const progress=make('progress',undefined,controls);progress.className='u22-progress';progress.max=100;progress.value=0;
+const serial=make('pre','',linux);serial.className='u22-serial';serial.tabIndex=0;serial.setAttribute('aria-label','Linux serial console');
+const commandForm=make('form',undefined,linux);commandForm.className='u22-input';const command=make('input',undefined,commandForm);command.placeholder='Linux command';command.setAttribute('aria-label','Linux command');const sendButton=make('button','Send',commandForm);sendButton.type='submit';
+const starters=make('div',undefined,linux);starters.className='u22-bar';
+const details=make('details',undefined,linux);details.className='u22-card';make('summary','Files, VM backup and limitations',details);const extra=make('div',undefined,details);extra.className='u22-bar';
+const mount='mkdir -p /mnt/ubos; mount -t 9p -o trans=virtio,version=9p2000.L host9p /mnt/ubos';make('code',mount,details);make('p','Guest networking is OFF. No apt/apk, GitHub CLI installation or universal package compatibility. Guest changes are temporary unless a VM state is downloaded. VM states may contain private guest data. Import trusted files only (32 MiB per file); runtime downloads are limited to 64 MiB each.',details);
+const CACHE='ubos.linux21.v86-0.5.44-buildroot68',LIMIT=64*1024*1024;
+const sources={lib:'https://cdn.jsdelivr.net/npm/v86@0.5.44/build/libv86.js',wasm:'https://cdn.jsdelivr.net/npm/v86@0.5.44/build/v86.wasm',bios:'https://cdn.jsdelivr.net/gh/copy/v86@94faf3d6b19ecabc53a4010aaa24252fa6a162e2/bios/seabios.bin',vga:'https://cdn.jsdelivr.net/gh/copy/v86@94faf3d6b19ecabc53a4010aaa24252fa6a162e2/bios/vgabios.bin',kernel:'https://copy.sh/v86/images/buildroot-bzimage68.bin'};
+let vm=null,controller=null,starting=false,ready=false,paused=false,saving=false;const urls=[];
+function release(){for(const url of urls)URL.revokeObjectURL(url);urls.length=0}
+async function asset(cache,url,signal){let response=await cache.match(url);if(!response){response=await fetch(url,{signal,mode:'cors',credentials:'omit'});if(!response.ok)throw new Error('Runtime download failed: '+response.status);if(Number(response.headers.get('content-length'))>LIMIT)throw new Error('Runtime asset exceeds 64 MiB');if(!response.body)throw new Error('Streaming downloads are unavailable');const reader=response.body.getReader(),parts=[];let size=0;try{for(;;){const item=await reader.read();if(item.done)break;size+=item.value.byteLength;if(size>LIMIT)throw new Error('Runtime asset exceeds 64 MiB');parts.push(item.value);status.textContent='Downloading runtime: '+(size/1048576).toFixed(1)+' MiB'}}finally{await reader.cancel().catch(()=>{})}signal.throwIfAborted();response=new Response(new Blob(parts));await cache.put(url,response.clone())}const bytes=await response.arrayBuffer();signal.throwIfAborted();if(bytes.byteLength>LIMIT)throw new Error('Cached asset exceeds 64 MiB');const result=URL.createObjectURL(new Blob([bytes],{type:url.endsWith('.wasm')?'application/wasm':url.endsWith('.js')?'text/javascript':'application/octet-stream'}));urls.push(result);return result}
+function requireVM(){if(!vm||!ready)throw new Error('Start Linux and wait for VM initialization.');return vm}
+function send(text){const emulator=requireVM();if(paused)throw new Error('Resume Linux first.');emulator.serial0_send(text)}
+async function start(){if(starting||saving)return;if(vm){if(paused){vm.run();paused=false;status.textContent='VM resumed.'}return}starting=true;controller=new AbortController();const signal=controller.signal;try{const cache=await caches.open(CACHE),assets={};let n=0;for(const[key,url]of Object.entries(sources)){status.textContent='Preparing '+key+'…';assets[key]=await asset(cache,url,signal);progress.value=++n*18}await new Promise((resolve,reject)=>{if(typeof window.V86Starter==='function'){resolve();return}const script=make('script');script.src=assets.lib;const cancel=()=>{script.remove();reject(new DOMException('Cancelled','AbortError'))};signal.addEventListener('abort',cancel,{once:true});script.onload=()=>{signal.removeEventListener('abort',cancel);resolve()};script.onerror=()=>{signal.removeEventListener('abort',cancel);reject(new Error('v86 library failed to load'))};document.head.append(script)});signal.throwIfAborted();if(typeof window.V86Starter!=='function')throw new Error('Pinned v86 library did not expose V86Starter.');status.textContent='VM initializing. Watch serial output for Linux boot progress.';vm=new window.V86Starter({wasm_path:assets.wasm,memory_size:128*1024*1024,vga_memory_size:8*1024*1024,bios:{url:assets.bios},vga_bios:{url:assets.vga},bzimage:{url:assets.kernel},cmdline:'console=ttyS0 tsc=reliable',filesystem:{},autostart:true,disable_speaker:true});vm.add_listener('emulator-ready',()=>{ready=true;progress.value=100;status.textContent='VM initialized. Linux boot output appears below; initialization does not confirm a guest shell is ready.'});vm.add_listener('serial0-output-byte',byte=>{serial.textContent+=String.fromCharCode(byte);if(serial.textContent.length>40000)serial.textContent=serial.textContent.slice(-30000);serial.scrollTop=serial.scrollHeight});vm.add_listener('download-error',()=>{status.textContent='VM asset loading failed. Stop the VM and retry.'})}catch(e){if(vm){try{vm.destroy()}catch{}}vm=null;ready=false;release();progress.value=0;status.textContent=e.name==='AbortError'?'Runtime download cancelled.':e.message}finally{starting=false;controller=null}}
+button(controls,'Start / resume',start);button(controls,'Pause',()=>{requireVM().stop();paused=true;status.textContent='VM paused.'});button(controls,'Stop VM',()=>{if(starting){controller?.abort();return}if(saving)throw new Error('Wait for the VM backup.');if(vm&&!confirm('Stop Linux? Guest changes without a downloaded VM state will be lost.'))return;vm?.destroy();vm=null;ready=paused=false;release();progress.value=0;status.textContent='VM stopped. Cached runtime files remain.'});button(controls,'Cancel download',()=>controller?.abort());
+button(extra,'Download VM state',async()=>{const emulator=requireVM();if(saving)return;saving=true;const wasPaused=paused;emulator.stop();paused=true;try{const bytes=await new Promise((resolve,reject)=>emulator.save_state((err,data)=>err?reject(err):resolve(data)));const url=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));const a=make('a');a.href=url;a.download='ubos-linux-vm-state.bin';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);status.textContent='VM state download requested. It may contain private guest data.'}finally{saving=false;if(!wasPaused){emulator.run();paused=false}}});
+button(extra,'Remove runtime downloads',async()=>{if(vm||starting)throw new Error('Stop Linux first.');await caches.delete(CACHE);status.textContent='Linux runtime cache removed.'});
+const file=make('input',undefined,extra);file.type='file';file.multiple=true;file.setAttribute('aria-label','Import trusted files into Linux');file.onchange=async()=>{try{const emulator=requireVM();for(const f of file.files){if(f.size>32*1024*1024)throw new Error(f.name+' exceeds 32 MiB');const name='ubos-'+f.name.replace(/[^a-z0-9._-]/gi,'_');await new Promise((resolve,reject)=>{f.arrayBuffer().then(bytes=>emulator.create_file(name,new Uint8Array(bytes),err=>err?reject(err):resolve())).catch(reject)});status.textContent='Imported '+name+'. Mount host9p to access it.'}}catch(e){status.textContent=e.message}finally{file.value=''}};
+for(const text of ['uname -a','pwd','ls -la','busybox --list','df -h'])button(starters,text,()=>send(text+'\n'));button(starters,'Ctrl+C',()=>send('\x03'));button(extra,'Mount shared files',()=>send(mount+'\n'));
+commandForm.onsubmit=e=>{e.preventDefault();try{send(command.value+'\n');command.value=''}catch(err){status.textContent=err.message}};
+window.addEventListener('pagehide',()=>{controller?.abort();try{vm?.destroy()}catch{}release();parent.removeEventListener('ubos-node-state',stateListener)},{once:true});select(false);
 })();
