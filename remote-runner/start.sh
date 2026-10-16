@@ -18,3 +18,4 @@ sleep 2
 if ! kill -0 "$pid" 2>/dev/null; then echo "Runner failed. Review the private log: $state/runner.log" >&2; exit 1; fi
 echo "UBos runner started. Connection code is in the private log: $state/runner.log"
 echo 'Keep port 7681 Private. This starts the runner, not a stopped Codespace, and does not enable automatic Codespace shutdown.'
+bash "$runner/desktop-preview-start.sh"

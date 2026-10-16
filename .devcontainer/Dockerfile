@@ -13,3 +13,15 @@ RUN set -eu; \
     else \
         rm -- "$source_file"; \
     fi
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg; \
+    install -d -m 0755 /usr/share/keyrings; \
+    curl --fail --location --proto '=https' --tlsv1.2 https://dl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor --yes --output /usr/share/keyrings/google-chrome.gpg; \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends google-chrome-stable; \
+    rm -rf /var/lib/apt/lists/*

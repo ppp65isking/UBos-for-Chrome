@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
-  "scripts": { "start": "node server.mjs", "test": "node --test security.test.mjs transport.test.mjs" },
+  "scripts": { "start": "node server.mjs", "test": "node --test security.test.mjs transport.test.mjs desktop-preview.test.mjs" },
   "dependencies": { "@xterm/xterm": "5.5.0", "@xterm/addon-fit": "0.10.0", "node-pty": "^1.0.0", "ws": "^8.18.0" }
 }

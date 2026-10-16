@@ -1,21 +1,19 @@
-# Integrated Discord preview
+# Integrated private Chrome and Discord preview
 
-This adds an opt-in private Codespaces origin on port 7682. It reuses the actual UBos frontend but embeds the FULL Linux desktop, not a Discord-only stream. Your normal website, terminal runner and startup hooks are unchanged. Browser data on this origin is separate; add Discord again in UB Store.
+Port 7682 serves the actual UBos frontend on a private Codespaces origin. Its built-in **Browser** app streams real Google Chrome inside UBos; opening the app starts Chrome and closing its UBos window stops Chrome. Chrome is installed in the devcontainer image, and the private preview server starts with the Codespace. The preview still streams the shared Linux desktop, not an isolated application surface. The regular UBos website is unchanged, and browser data on this origin is separate.
 
-After pulling main safely, in a fresh Codespaces Bash shell at the repository root:
+After pulling main safely, rebuild the Codespace once so the devcontainer installs Google Chrome and applies the port configuration. Rebuilds can remove files and browser profiles outside `/workspaces`; back up important data first. After it reconnects:
 
 ```bash
-npm --prefix remote-runner install --no-audit --no-fund
 node --test remote-runner/desktop-preview.test.mjs
-node remote-runner/desktop-preview.mjs
 ```
 
-The server sets port 7682 Private and prints a URL and temporary engine code. Stop if private-port enforcement fails; do not switch any port to Public. Keep 6080 and 7681 Private; never forward raw VNC 5901. No container rebuild or new npm dependency is introduced. Existing desktop-lite and the managed Discord installation must already work.
+On each Codespace start, `remote-runner/start.sh` starts both the terminal runner and the desktop preview. If GitHub CLI reports missing Codespaces authorization, run `gh auth login -s codespace` once in a Codespaces terminal and restart the preview using `bash remote-runner/desktop-preview-start.sh`. The preview enforces port 7682 Private before binding and prints its URL and temporary engine code to the private runtime log at `${XDG_RUNTIME_DIR:-/tmp}/ubos-remote-$UID/desktop-preview.log`. Open the port-7682 URL and unlock it with that code. Never make port 7682 Public. Keep ports 6080 and 7681 Private too; never forward raw VNC port 5901.
 
-Open the printed URL, unlock the engine, add Discord in UB Store, then open it. Enter the changed VNC password when requested. Verify the ACTIVE server password file, /usr/local/etc/vscode-dev-containers/vnc-passwd, was changed from the public default. Running vncpasswd without a filename can change a different home-directory file. The prompt refuses the literal default but cannot verify the server configuration. Never share passwords or session files.
+Open **Browser** in UBos to start embedded Chrome. Chrome's profile and sign-in data are stored under `~/.local/share/ubos/chrome-profile` in the Codespace home directory. Closing the Browser window stops Chrome but keeps that profile while the Codespace storage remains. Closing the whole preview session or stopping the Codespace also stops Chrome; closing UBos does not stop Codespaces compute.
 
-Ready requires noVNC's connect event AND a visible X11 window with a Discord class and a PID belonging to the user's managed executable. It does not verify account sign-in, chat readiness, or a first video frame; a splash window can qualify. Timeout and Retry are provided. A minimized existing instance may need restoring through the explicitly unverified desktop-only view.
+To use Discord, add it in UB Store and open its launcher. Enter the changed VNC password when requested. Verify the active server password file `/usr/local/etc/vscode-dev-containers/vnc-passwd` was changed from the public default. Running `vncpasswd` without a filename can change a different home-directory file. The prompt refuses the literal default but cannot verify the server configuration. Never share passwords or session files.
 
-This is a privileged trusted-code-only preview: do not install untrusted HTML apps/scripts. Runtime/WebContainer pages and external website embedding are restricted. No arbitrary-command API, root launch, sandbox disabling, automatic installation or Codespace start/stop is added. Passwords/codes are not persisted in localStorage or URLs. Lock engine revokes this browser session; sessions expire after 30 minutes. Closing the viewer or pressing Ctrl+C does not stop Discord or Codespaces. Stop cloud compute through GitHub.
+The browser view uses the authenticated, same-origin noVNC stream and starts Chrome with its sandbox enabled; it does not expose a command API or turn arbitrary websites into trusted UBos content. The shared desktop may show other running Linux windows. Keep ports private and do not install untrusted HTML apps or scripts. Passwords and connection codes are not stored in URLs or local storage. Locking the engine revokes the browser session; sessions expire after 30 minutes. Stop Codespaces compute through GitHub when finished.
 
-Automated tests cover helper logic and a mocked browser. Live GitHub authentication, X11 detection, TCP/WebSocket streaming, browser rendering, audio and microphone remain unverified. Treat this as a preview, not production-ready.
+The tests cover helper logic and a mocked browser lifecycle. A live Codespace rebuild, GitHub private-port authentication, X11/Chrome streaming, and Discord/audio/microphone behavior still require verification. Treat this as a preview, not production-ready.

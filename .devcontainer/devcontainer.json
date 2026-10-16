@@ -11,7 +11,7 @@
   },
   "postCreateCommand": "npm --prefix remote-runner install --no-audit --no-fund",
   "postStartCommand": "bash remote-runner/start.sh",
-  "forwardPorts": [7681, 6080],
+  "forwardPorts": [7681, 6080, 7682],
   "portsAttributes": {
     "7681": {
       "label": "UBos private remote terminal",
@@ -19,6 +19,11 @@
     },
     "6080": {
       "label": "UBos Linux desktop preview - keep Private",
+      "onAutoForward": "silent"
+    },
+    "7682": {
+      "label": "UBos embedded Chrome and desktop - keep Private",
+      "visibility": "private",
       "onAutoForward": "silent"
     },
     "5901": {

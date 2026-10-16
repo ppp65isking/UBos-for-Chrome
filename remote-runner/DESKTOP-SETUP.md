@@ -1,6 +1,6 @@
 # Cloud Linux desktop preview: first test
 
-This adds the Dev Containers desktop-lite feature, a Fluxbox desktop and noVNC browser viewer. It is not yet embedded in UBos. Installation, Discord startup and media have not been live-tested for this repository. The existing terminal startup hooks are retained.
+This uses the Dev Containers desktop-lite feature, Fluxbox and noVNC. The desktop remains available directly on private port 6080; the authenticated UBos preview on private port 7682 embeds real Chrome in the built-in Browser app. Chrome is installed by the devcontainer Dockerfile. Installation, Discord startup and media have not been live-tested for this repository.
 
 ## Before rebuilding
 
@@ -12,7 +12,7 @@ Save your work. GitHub documents that rebuilds preserve /workspaces but clear ch
 2. Run git status. If there are changes you do not recognize or need to keep, stop and resolve them without deleting them. When safe, run git pull --ff-only origin main. If it fails, stop and inspect the error; do not force reset.
 3. After backing up important data, press Ctrl+Shift+P (Windows/Linux) or Cmd+Shift+P (Mac), type Rebuild, and choose Codespaces: Rebuild Container, then Rebuild. Wait for it to reconnect. If it enters recovery mode, inspect the creation log instead of repeating the rebuild blindly.
 4. Open a fresh Codespaces Bash terminal at the repository root. Run vncpasswd to replace desktop-lite's publicly documented default VNC password (vscode). Choose a separate password that is not your GitHub or Discord password. Do not paste it into chat or source files. If password setup fails, stop before signing in to Discord.
-5. Open the Ports panel. Confirm port 6080 is Private before opening it in the browser. Also keep terminal port 7681 Private. The port labels in this configuration do not enforce visibility. Do not forward raw VNC port 5901; remove any existing forwarding for it. Do not switch the desktop port to Public to troubleshoot access.
+5. Open the Ports panel. Confirm ports 6080, 7681 and 7682 are Private before opening them in the browser. Do not forward raw VNC port 5901; remove any existing forwarding for it. Do not switch a port to Public to troubleshoot access.
 6. Use Open in Browser for port 6080. If the root shows a directory rather than a Connect screen, open /vnc.html on that same private forwarded origin. Sign in to GitHub if prompted, then connect with the VNC password you chose. Keep passwords and connection codes private.
 7. Back in the fresh Codespaces terminal, run these commands from the repository root:
 
