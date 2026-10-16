@@ -81,5 +81,5 @@ function attach(frame){
 const beforeRender=render;render=function(id,c){beforeRender(id==='node-beta'?'terminal':id,c);const frame=c.querySelector('iframe');if(frame)attach(frame)};
 for(const frame of document.querySelectorAll('iframe'))attach(frame);
 launcher();dock();
-let featureTicks=0;const featureTimer=setInterval(()=>{if(window.ubosFeatures21){clearInterval(featureTimer);const s=document.createElement('script');s.src='assistant-v23.js';s.onerror=()=>tell('UB Assistant could not load.');document.body.append(s)}else if(++featureTicks>1500){clearInterval(featureTimer);tell('UB Assistant prerequisites timed out.')}},20);
+let featureTicks=0;const featureTimer=setInterval(()=>{if(window.ubosFeatures21){clearInterval(featureTimer);const s=document.createElement('script');s.src='assistant-v23.js';s.onload=()=>{if(document.getElementById('ubos-desktop24-script'))return;const desktop=document.createElement('script');desktop.id='ubos-desktop24-script';desktop.src='v24-desktop.js';desktop.onerror=()=>tell('Desktop personalization could not load. Existing apps remain available.');document.body.append(desktop)};s.onerror=()=>tell('UB Assistant could not load.');document.body.append(s)}else if(++featureTicks>1500){clearInterval(featureTimer);tell('UB Assistant prerequisites timed out.')}},20);
 })();
