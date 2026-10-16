@@ -2,24 +2,39 @@
 'use strict';
 if(window.ubosTerminal21Loader)return;window.ubosTerminal21Loader=true;
 const style=document.createElement('style');style.textContent=`
-#shortcuts{width:114px;grid-template-columns:minmax(0,1fr);align-content:start;gap:8px;padding:10px;overflow-x:hidden}
-#shortcuts>button{box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:72px;height:auto;padding:7px 4px!important;font:12px/1.3 'Google Sans',system-ui!important;overflow-wrap:anywhere;white-space:normal}
-#shortcuts>button>span:not(.u21-icon):not(.ubos-vendor-art){display:block;font:12px/1.3 'Google Sans',system-ui!important;margin:3px 0 0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
-#shortcuts>button>.u21-icon{width:28px;height:28px;margin:0 auto 4px!important;font-size:28px}
-#shortcuts>button>.ubos-vendor-art{width:28px;height:28px;margin:0 auto 4px!important}
+#desk>#shortcuts{display:grid;width:calc(100% - 32px);max-width:1080px;max-height:calc(100dvh - 140px);margin:0 16px;padding:8px;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));align-content:start;align-items:start;gap:12px;overflow:auto;scrollbar-width:thin}
+#desk>#shortcuts>button{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:7px;width:100%;min-width:0;max-width:100%;min-height:96px;height:auto;padding:12px 6px;border:1px solid transparent;border-radius:18px;background:var(--tile);font:12px/1.4 'Google Sans',system-ui;overflow-wrap:anywhere;white-space:normal;text-align:center}
+#desk>#shortcuts>button:hover{background:#929fff25;border-color:#9199af40}
+#desk>#shortcuts>button>.ubos-desktop-label{display:block;max-width:100%;font:inherit;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+#desk>#shortcuts>button>.u21-icon,#desk>#shortcuts>button>.ubos-vendor-art{display:flex;width:32px;height:32px;flex:0 0 32px;margin:0!important;font-size:28px}
+#desk>#shortcuts>button>.u21-icon>svg,#desk>#shortcuts>button>.u21-icon>img{display:block;width:100%;height:100%;margin:0;object-fit:contain}
+#welcome{display:none}
 #taskbar button{font-size:12px;line-height:1.3;min-height:34px;padding:7px 10px}
-#u22-quick{position:absolute;right:16px;top:48px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:calc(100% - 140px);z-index:2}
-#u22-quick button{font-size:12px!important;line-height:1.3;padding:7px 10px!important;min-height:34px}
-@media(max-width:700px){#u22-quick{position:fixed;top:8px;right:8px;max-width:calc(100% - 140px)}}`;
+@media(max-width:700px),(max-height:500px){#desk>#shortcuts{width:calc(100% - 16px);max-height:calc(100dvh - 125px);margin:0 8px;padding:6px;gap:8px;grid-template-columns:repeat(auto-fill,minmax(78px,1fr))}#desk>#shortcuts>button{min-height:90px;padding:10px 4px}}
+@media(max-width:360px){#desk>#shortcuts{gap:6px;grid-template-columns:repeat(auto-fill,minmax(68px,1fr))}}`;
 document.head.append(style);
 const oldOpen=openApp;
 openApp=function(id,...args){return oldOpen(id==='node-beta'?'terminal':id,...args)};
 const legacy=wins.get('node-beta');if(legacy)legacy.querySelector('button[title="Close"]')?.click();
 if(!wins.has('node-beta'))delete apps['node-beta'];
 for(const b of document.querySelectorAll('#shortcuts button,#menu button'))if(b.dataset.app18==='node-beta'||b.textContent.trim()==='Node/npm Beta')b.remove();
-const links=document.createElement('nav');links.id='u22-quick';links.setAttribute('aria-label','UBos feature shortcuts');
-for(const [label,id]of [['Terminal','terminal'],['UB Store','ub-store'],['Privacy locks','settings'],['Lazer Dodge','game-lazer']])btn(label,()=>{if(!apps[id]){tell('Feature module is not ready. Reload UBos if this persists.');return}const w=openApp(id);if(label==='Privacy locks')settingsUI(w.querySelector('.body'),'Privacy locks')},links);
-document.querySelector('#desk').append(links);
+// Labels use their own element, never the legacy icon-only span selector.
+// Keep existing buttons, click handlers, artwork and saved app registrations.
+const shortcuts=document.querySelector('#shortcuts');
+shortcuts.setAttribute('aria-label','Desktop apps');
+function normalizeDesktopLabels(){
+ for(const button of shortcuts.querySelectorAll(':scope>button')){
+  if(!button.querySelector(':scope>.u21-icon,:scope>.ubos-vendor-art'))continue;
+  for(const child of [...button.children]){
+   if(child.tagName!=='SPAN'||child.className&&child.className!=='label'||!child.textContent.trim()||child.querySelector('svg,img'))continue;
+   const label=document.createElement('small');
+   label.className='ubos-desktop-label';label.textContent=child.textContent;
+   child.replaceWith(label);
+  }
+ }
+}
+new MutationObserver(normalizeDesktopLabels).observe(shortcuts,{childList:true,subtree:true});
+normalizeDesktopLabels();
 const attached=new WeakSet(),base=new URL('.',location.href);
 function installV86Compatibility(win){
  if(win.ubosV86Compatibility221)return;
@@ -66,5 +81,5 @@ function attach(frame){
 const beforeRender=render;render=function(id,c){beforeRender(id==='node-beta'?'terminal':id,c);const frame=c.querySelector('iframe');if(frame)attach(frame)};
 for(const frame of document.querySelectorAll('iframe'))attach(frame);
 launcher();dock();
-let featureTicks=0;const featureTimer=setInterval(()=>{if(window.ubosFeatures21){clearInterval(featureTimer);const s=document.createElement('script');s.src='assistant-v23.js';s.onerror=()=>tell('UB Assistent could not load.');document.body.append(s)}else if(++featureTicks>1500){clearInterval(featureTimer);tell('UB Assistent prerequisites timed out.')}},20);
+let featureTicks=0;const featureTimer=setInterval(()=>{if(window.ubosFeatures21){clearInterval(featureTimer);const s=document.createElement('script');s.src='assistant-v23.js';s.onerror=()=>tell('UB Assistant could not load.');document.body.append(s)}else if(++featureTicks>1500){clearInterval(featureTimer);tell('UB Assistant prerequisites timed out.')}},20);
 })();
