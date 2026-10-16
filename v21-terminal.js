@@ -37,7 +37,12 @@ function installV86Compatibility(win){
    return operation;
   };
  }
- function Compatible(options){const Constructor=native();if(!Constructor)throw new Error('v86 library has not loaded a supported constructor (V86 or V86Starter).');const instance=Reflect.construct(Constructor,[options]);adapt(instance,'save_state');adapt(instance,'create_file');return instance}
+ function Compatible(options){const Constructor=native();if(!Constructor)throw new Error('v86 library has not loaded a supported constructor (V86 or V86Starter).');const instance=Reflect.construct(Constructor,[{...options,disable_keyboard:true,disable_mouse:true}]);adapt(instance,'save_state');adapt(instance,'create_file');
+ const state={ready:false,paused:false,alive:true};win.ubosLinuxVM=instance;win.ubosLinuxState=state;
+ const notify=()=>win.dispatchEvent(new win.Event('ubos-linux-state'));
+ instance.add_listener('emulator-ready',()=>{if(state.alive){state.ready=true;notify()}});
+ for(const method of ['run','stop','destroy']){const original=instance[method];if(typeof original==='function')instance[method]=function(...args){const result=Reflect.apply(original,instance,args);if(method==='destroy'){state.alive=false;state.ready=false;if(win.ubosLinuxVM===instance)win.ubosLinuxVM=null}else state.paused=method==='stop';notify();return result}}
+ notify();return instance}
  const descriptor=Object.getOwnPropertyDescriptor(win,'V86Starter');
  if(descriptor&&!descriptor.configurable){if(!descriptor.writable||!native())throw new Error('Cannot install the v86 compatibility adapter. Reopen Terminal.');win.V86Starter=Compatible}
  else Object.defineProperty(win,'V86Starter',{configurable:true,enumerable:true,get(){return native()?Compatible:undefined},set(value){if(value!==Compatible)nativeStarter=value}});
@@ -52,7 +57,7 @@ function attach(frame){
   attached.add(doc);let ticks=0;
   const timer=setInterval(()=>{
    if(!frame.isConnected||frame.contentDocument!==doc){clearInterval(timer);return}
-   if(win.terminal195Ready){clearInterval(timer);try{installV86Compatibility(win);const s=doc.createElement('script');s.src='terminal-v21.js?fix=221-v86compat1';s.onerror=()=>tell('Terminal 2.21 UI failed to load. The base Terminal is still available.');doc.body.append(s)}catch(e){tell('v86 compatibility setup failed: '+e.message)}}
+   if(win.terminal195Ready){clearInterval(timer);try{installV86Compatibility(win);const s=doc.createElement('script');s.src='terminal-v21.js?fix=23-input1';s.onload=()=>{const input=doc.createElement('script');input.src='terminal-v23.js';input.onerror=()=>tell('Terminal 2.3 input tools could not load.');doc.body.append(input)};s.onerror=()=>tell('Terminal 2.21 UI failed to load. The base Terminal is still available.');doc.body.append(s)}catch(e){tell('v86 compatibility setup failed: '+e.message)}}
    else if(++ticks>=3000){clearInterval(timer);tell('Terminal initialization timed out. Reopen Terminal to retry.')}
   },20);
  }catch(e){tell('Terminal attachment failed: '+e.message)}};
@@ -61,4 +66,5 @@ function attach(frame){
 const beforeRender=render;render=function(id,c){beforeRender(id==='node-beta'?'terminal':id,c);const frame=c.querySelector('iframe');if(frame)attach(frame)};
 for(const frame of document.querySelectorAll('iframe'))attach(frame);
 launcher();dock();
+let featureTicks=0;const featureTimer=setInterval(()=>{if(window.ubosFeatures21){clearInterval(featureTimer);const s=document.createElement('script');s.src='assistant-v23.js';s.onerror=()=>tell('UB Assistent could not load.');document.body.append(s)}else if(++featureTicks>1500){clearInterval(featureTimer);tell('UB Assistent prerequisites timed out.')}},20);
 })();
