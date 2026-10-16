@@ -3,7 +3,7 @@
 if(window.ubosTerminal21)return;window.ubosTerminal21=true;
 const q=s=>document.querySelector(s);
 const header=q('header'),title=header.querySelector('strong');
-title.textContent='>_ Terminal · 2.1';
+title.textContent='>_ Terminal · 2.2';
 const CACHE='ubos.linux21.v86-0.5.44-buildroot68';
 const MAX_ASSET=64*1024*1024,MAX_IMPORT=32*1024*1024;
 const ASSETS={
@@ -14,23 +14,26 @@ const ASSETS={
  kernel:['Buildroot kernel','https://copy.sh/v86/images/buildroot-bzimage68.bin']
 };
 const style=document.createElement('style');
-style.textContent=`#ubos-tabs{display:flex;gap:6px;padding:10px 14px 0}
-#ubos-tabs button{border-radius:12px 12px 0 0;border-bottom:0}
+style.textContent=`#ubos-tabs{display:flex;gap:6px;padding:8px 12px 0}
+#ubos-tabs button{border-radius:10px 10px 0 0;border-bottom:0;padding:6px 10px;font-size:12px}
 #ubos-tabs button[aria-selected=true]{background:#ffffff1f;border-color:#7fd1ff80}
 .ubos-pane{flex:1;min-height:0;display:flex;flex-direction:column}
-#ubos-linux{gap:10px;padding:12px 14px;overflow:auto}
-.ubos-card{border:1px solid #ffffff20;background:#ffffff08;border-radius:14px;padding:12px}
-.ubos-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.ubos-muted{opacity:.72;margin:6px 0 0}
-.ubos-progress{height:8px;border-radius:99px;background:#ffffff18;overflow:hidden;margin-top:8px}
+#ubos-linux{gap:8px;padding:10px 12px;overflow:auto}
+.ubos-card{border:1px solid #ffffff20;background:#ffffff08;border-radius:12px;padding:10px 12px}
+.ubos-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.ubos-muted{opacity:.72;margin:4px 0 0;font-size:12px}
+.ubos-progress{height:6px;border-radius:99px;background:#ffffff18;overflow:hidden;margin-top:6px}
 .ubos-progress>div{height:100%;width:0;background:#7fd1ff;transition:width .2s}
-.ubos-log{flex:1;min-height:120px;margin:0;padding:10px;background:#0d1420;border:1px solid #ffffff20;border-radius:12px;overflow:auto;white-space:pre-wrap}
-.ubos-serial{height:190px;flex:0 0 auto;background:#101827}
-.ubos-chip{display:inline-block;padding:3px 8px;border-radius:99px;background:#ffffff12;font-size:11px}
+.ubos-log{flex:1;min-height:110px;margin:0;padding:8px;background:#0d1420;border:1px solid #ffffff20;border-radius:10px;overflow:auto;white-space:pre-wrap;font-size:12px}
+.ubos-serial{height:170px;flex:0 0 auto;background:#101827}
+.ubos-chip{display:inline-block;padding:2px 6px;border-radius:99px;background:#ffffff12;font-size:11px}
 .ubos-chip[data-state=ready]{background:#1d5c3a}
 .ubos-chip[data-state=error]{background:#6b2430}
-.ubos-code{display:block;margin-top:8px;padding:8px;background:#ffffff0d;border-radius:8px;overflow-wrap:anywhere}
-.ubos-danger{color:#ffb4bd}`;
+.ubos-code{display:block;margin-top:6px;padding:6px;background:#ffffff0d;border-radius:8px;overflow-wrap:anywhere;font-size:12px}
+.ubos-danger{color:#ffb4bd}
+.ubos-uninstall{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.ubos-uninstall .ubos-row{gap:4px}
+#ubos-linux button,.ubos-uninstall button{padding:5px 9px;font-size:12px;border-radius:10px}`;
 document.head.append(style);
 const output=q('#output'),form=q('#form');
 const tools=[...document.querySelectorAll('div')].find(n=>n.style?.cssText?.includes('align-items:center'));
@@ -41,6 +44,13 @@ const linuxBtn=Object.assign(document.createElement('button'),{type:'button',tex
 nodeBtn.setAttribute('aria-selected','true');tabs.append(nodeBtn,linuxBtn);
 const nodePane=document.createElement('section');nodePane.className='ubos-pane';
 nodePane.append(output,tools,host,form);
+const uninstallCard=document.createElement('div');uninstallCard.className='ubos-card ubos-uninstall';
+const uninstallHead=document.createElement('div');uninstallHead.className='ubos-row';
+const uninstallTitle=document.createElement('strong');uninstallTitle.textContent='Installed Node CLIs';
+uninstallHead.append(uninstallTitle);
+const uninstallRow=document.createElement('div');uninstallRow.className='ubos-row';
+uninstallCard.append(uninstallHead,uninstallRow);
+nodePane.insertBefore(uninstallCard,form);
 const linuxPane=document.createElement('section');linuxPane.className='ubos-pane';linuxPane.id='ubos-linux';linuxPane.hidden=true;
 header.after(tabs,nodePane,linuxPane);
 function select(node){const isNode=node==='node';nodeBtn.setAttribute('aria-selected',isNode);linuxBtn.setAttribute('aria-selected',!isNode);nodePane.hidden=!isNode;linuxPane.hidden=isNode}
@@ -113,6 +123,10 @@ async function boot(){
 }
 function requireVM(){if(!emulator)throw new Error('Start the Linux VM first');return emulator}
 function send(text){requireVM().serial_send(text)}
+function runCommand(line){const input=form.querySelector('#input');if(!input)return;input.value=line;form.requestSubmit()}
+function refreshUninstall(){uninstallRow.replaceChildren();const names=new Set();for(const[id]of Object.entries(parent.apps||{}))if(id.startsWith('npm-')){try{names.add(decodeURIComponent(id.slice(4)))}catch{}}if(!names.size){const empty=document.createElement('span');empty.className='ubos-muted';empty.textContent='No installed Node CLIs.';uninstallRow.append(empty)}for(const name of names)button(uninstallRow,'Uninstall '+name,()=>runCommand('npm uninstall '+JSON.stringify(name)))}
+button(uninstallHead,'Refresh',refreshUninstall);
+refreshUninstall();
 button(actions,'Start',async()=>{if(paused){emulator.run();paused=false;setVM('ready','VM running');say('VM resumed.');return}await boot()});
 button(actions,'Pause',()=>{const vm=requireVM();if(paused)throw new Error('VM is already paused');vm.stop();paused=true;setVM('idle','VM paused');say('VM paused. Guest memory remains in this tab.')});
 button(actions,'Resume',()=>{const vm=requireVM();if(!paused)throw new Error('VM is already running');vm.run();paused=false;setVM('ready','VM running');say('VM resumed.')});
