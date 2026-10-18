@@ -22,16 +22,10 @@ const style=make('style');style.id='ubos-desktop24-style';style.textContent=`
 .u24-pin-list{display:grid;gap:6px;margin:12px 0;max-height:260px;overflow:auto}
 .u24-pin-list label{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #8883;border-radius:12px;overflow-wrap:anywhere;min-height:44px}
 .u24-pin-list input{flex:0 0 auto}.u24-search{width:100%}
-#ub-assistant{width:min(680px,calc(100vw - 24px));border-radius:30px;box-shadow:0 20px 70px #0005,inset 0 0 0 1px #ffffff25}
+#ub-assistant{width:min(760px,calc(100vw - 32px));border-radius:32px;box-shadow:0 28px 100px #0008,0 0 90px #9b88ff25,inset 0 0 0 1px #ffffff25}
 #ub-assistant::before{background:linear-gradient(110deg,#78ece0,#a89cff,#f4c7ed,#7dbbff,#78ece0);background-size:300% 100%;animation-duration:7s}
-#ub-assistant .ub-panel{border-radius:28px;padding:18px;background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(155%);box-shadow:inset 0 1px #ffffff35;max-height:calc(100dvh - 120px);overflow:auto}
-#ub-assistant .ub-panel>strong{display:block;font-size:16px;font-weight:500;margin:0 4px 12px}
-#ub-assistant input{background:var(--tile);border:1px solid #9199af40;min-height:46px}
-#ub-assistant button{min-height:44px;border-radius:14px}
-#ub-assistant .ub-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:8px;margin-top:12px}
-#ub-assistant .ub-results button{text-align:left;overflow-wrap:anywhere}
-#ub-assistant p{margin:10px 4px 0;opacity:.8}
-#ub-assistant-glow{border:1px solid #b3adff50;box-shadow:inset 0 0 24px #a89cff35,inset 0 0 64px #78ece015;border-radius:0}
+#ub-assistant .ub-panel{border-radius:30px;padding:clamp(20px,4vw,38px);background:var(--glass);backdrop-filter:blur(var(--blur)) saturate(155%);box-shadow:inset 0 1px #ffffff35;max-height:min(86dvh,820px);overflow:auto}
+#ub-assistant-glow{border:0;box-shadow:none;background:radial-gradient(ellipse at 50% 52%,#13152d20,transparent 72%);border-radius:0}
 body[data-u24-animation=off] #ub-assistant::before{animation:none}
 body[data-u24-glow=off] #ub-assistant-glow{display:none!important}
 body[data-u24-solid=on] #ub-assistant .ub-panel,body[data-u24-solid=on] #u24-home form{backdrop-filter:none;background:#252b43}
@@ -41,7 +35,8 @@ body.contrast #ub-assistant .ub-panel,body.contrast #u24-home form{background:va
 body.contrast #ub-assistant-glow{display:none!important}
 @media(prefers-reduced-motion:reduce){#ub-assistant::before{animation:none}}
 @media(prefers-reduced-transparency:reduce){#ub-assistant .ub-panel,#u24-home form{backdrop-filter:none;background:#252b43}body.light #ub-assistant .ub-panel,body.light #u24-home form{background:#f1f5ff}}
-@media(max-width:700px),(max-height:500px){#u24-home{margin:0 14px 8px;gap:8px}#ub-assistant .ub-panel{padding:12px}}
+@media(max-width:700px){#u24-home{margin:0 14px 8px;gap:8px}#ub-assistant{width:calc(100vw - 20px)}#ub-assistant .ub-panel{padding:18px 15px;border-radius:27px}#ub-assistant .ub-results{grid-template-columns:repeat(2,minmax(0,1fr))}#ub-assistant .ub-assistant-topbar{margin-bottom:34px}#ub-assistant .ub-assistant-foot{flex-direction:column;gap:4px}}
+@media(max-height:540px){#ub-assistant{top:8px;bottom:auto;transform:translateX(-50%)}#ub-assistant .ub-panel{max-height:calc(100dvh - 16px);padding:16px 24px}#ub-assistant .ub-assistant-topbar{margin-bottom:18px}#ub-assistant .ub-assistant-hero{margin-bottom:14px}#ub-assistant .ub-assistant-hero h1{font-size:30px}#ub-assistant .ub-try-label{margin-top:14px}}
 `;document.head.append(style);
 const home=make('section');home.id='u24-home';home.setAttribute('aria-label','Personal desktop');const greeting=make('h1','Your desktop.',home);
 function desktopSettings(){if(locked())return;const w=openApp('settings');if(w&&!w.classList.contains('u21-app-locked'))settingsUI(w.querySelector('.body'),'Desktop')}
