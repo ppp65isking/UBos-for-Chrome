@@ -1,6 +1,6 @@
 # Cloud Linux desktop preview: first test
 
-This uses the Dev Containers desktop-lite feature, Fluxbox and noVNC. The desktop remains available directly on private port 6080; the authenticated UBos preview on private port 7682 embeds real Chrome in the built-in Browser app. Chrome is installed by the devcontainer Dockerfile. Installation, Discord startup and media have not been live-tested for this repository.
+This uses the Dev Containers desktop-lite feature, Fluxbox and noVNC. The desktop remains available directly on private port 6080; the authenticated UBos preview on private port 7682 embeds real Chrome in the built-in Browser app. Chrome is installed by the devcontainer Dockerfile, and its profile is saved in the ignored `.ubos/chrome-profile` workspace directory. Installation, Discord startup and media have not been live-tested for this repository.
 
 ## Before rebuilding
 

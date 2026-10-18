@@ -1,10 +1,11 @@
 (()=>{
 'use strict';if(window.ubosStore20)return;window.ubosStore20=true;
-const key='ubos.store20.launchers',urlKey='ubos.remoteTerminal.url',desktopKey='ubos.remoteDesktop.url';
+const key='ubos.store20.launchers',urlKey='ubos.remoteTerminal.url',desktopKey='ubos.remoteDesktop.url',chromeKey='ubos.chromePreview.url';
 const catalog=[
 {id:'codex',name:'Codex for UBos',docs:'https://developers.openai.com/codex/cli',kind:'cli'},
 {id:'claude',name:'Claude Code for UBos',docs:'https://code.claude.com/docs/en/setup',kind:'cli'},
-{id:'discord',name:'Discord for UBos',docs:'https://discord.com/download',kind:'desktop'}
+{id:'discord',name:'Discord for UBos',docs:'https://discord.com/download',kind:'desktop',category:'Desktop'},
+{id:'chrome',name:'Google Chrome',docs:'https://www.google.com/chrome/',kind:'browser',category:'Browsers'}
 ];
 const oldRender=render,oldSettings=settingsUI,remoteId='remote-terminal';
 function installed(){try{const value=JSON.parse(localStorage.getItem(key)||'[]');return new Set(Array.isArray(value)?value.filter(id=>catalog.some(app=>app.id===id)):[])}catch{return new Set()}}
@@ -13,6 +14,11 @@ function validateEndpoint(value,port,desktop=false){
  const host=new RegExp('^[a-z0-9-]+-'+port+'[.]app[.]github[.]dev$');
  if(u.protocol!=='https:'||u.username||u.password||u.port||!host.test(u.hostname)||u.search||u.hash||(!desktop&&u.pathname!=='/')||(desktop&&!['/','/vnc.html'].includes(u.pathname)))throw new Error('Use the HTTPS Codespaces port-'+port+' URL'+(desktop?' with / or /vnc.html':' with /')+', without credentials, query parameters or fragments. Keep its forwarded port Private.');
  if(desktop)u.pathname='/vnc.html';
+ return u.href;
+}
+function validateChromePreview(value){
+ const u=new URL(value),host=new RegExp('^[a-z0-9-]+-7682[.]app[.]github[.]dev$');
+ if(u.protocol!=='https:'||u.username||u.password||u.port||!host.test(u.hostname)||u.pathname!=='/'||u.search||u.hash)throw new Error('Use the private HTTPS Codespaces port-7682 URL ending in /, without credentials, query parameters, or fragments.');
  return u.href;
 }
 function stored(k){try{return localStorage.getItem(k)||''}catch{return''}}
@@ -26,6 +32,20 @@ async function remove(app){if(!await ask('Remove '+app.name+' launcher?','This r
 function refreshViews(){const store=wins.get('ub-store');if(store)storeUI(store.querySelector('.body'));for(const app of catalog){const w=wins.get('store-'+app.id);if(w)appUI(app,w.querySelector('.body'))}const remote=wins.get(remoteId);if(remote)render(remoteId,remote.querySelector('.body'));const settings=wins.get('settings');if(settings?.querySelector('[data-store-settings]'))settingsUI(settings.querySelector('.body'),'Apps')}
 function command(parent,label,value){const box=document.createElement('div');box.className='card';text(box,'p',label);const code=text(box,'code',value);code.style.cssText='display:block;white-space:pre-wrap;user-select:text;margin:10px 0';btn('Copy command',async()=>{try{await navigator.clipboard.writeText(value);tell('Command copied. Paste it into a fresh Codespaces Bash shell at the repository root, not an active AI prompt.')}catch{tell('Clipboard unavailable. Select and copy the command shown.')}},box);parent.append(box)}
 function openEndpoint(desktop){try{const target=validateEndpoint(stored(desktop?desktopKey:urlKey),desktop?6080:7681,desktop);window.open(target,'_blank','noopener,noreferrer')}catch(e){tell(e.message)}}
+function openChrome(){
+ if(/^[a-z0-9-]+-7682[.]app[.]github[.]dev$/.test(location.hostname)){openApp('store-chrome');return}
+ try{window.open(validateChromePreview(stored(chromeKey)),'_blank','noopener,noreferrer')}
+ catch(e){tell(e.message+' Save the port-7682 preview URL in the Google Chrome app first.')}
+}
+async function chromeStatus(path='/preview/browser/status'){
+ try{const response=await fetch(path,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error(response.status===401?'Unlock the private preview first.':'Private preview status unavailable.');const status=await response.json();return status}
+ catch(e){return {error:e.message||'Private preview status unavailable.'}}
+}
+function browserStatus(parent,path='/preview/browser/status',name='Chrome'){
+ const status=text(parent,'p','Checking '+name+' status…');status.setAttribute('role','status');
+ const check=async()=>{status.textContent='Checking '+name+' status…';const s=await chromeStatus(path);status.textContent=s.error?name+' status unavailable: '+s.error:name+': '+(s.installed?'installed':'not installed')+(s.version?' · version: '+s.version:'')+' · desktop: '+(s.displayReady?'ready':'not ready')+' · process: '+(s.running?'running':'stopped')+' · visible window: '+(s.windowMapped?'yes':'no');if(s.error)status.dataset.state='unknown';else status.dataset.state=s.installed?'installed':'missing'};
+ btn('Refresh '+name+' diagnostics',check,parent);check();
+}
 function openRemote(){openEndpoint(false)}
 function endpointUI(c,desktop=false){
  const k=desktop?desktopKey:urlKey,port=desktop?6080:7681;
@@ -43,9 +63,23 @@ function endpointUI(c,desktop=false){
 }
 function appUI(app,c){
  c.className='body';c.replaceChildren();text(c,'h1',app.name);
+ if(app.kind==='browser'){
+  text(c,'p','A separate UBos launcher for the real Google Chrome installed in your private Codespace. The built-in Browser remains available as an alternative.');
+  text(c,'p','UBos does not install Chrome when you add this launcher. Chrome is included in the Codespaces devcontainer image; its profile is saved in the ignored workspace folder .ubos/chrome-profile.');
+  const row=document.createElement('div');row.className='row';c.append(row);
+  btn('Open Google Chrome ↗',openChrome,row);btn('Open built-in Browser',()=>openApp('browser'),row);btn('UB Store',()=>openApp('ub-store'),row);
+  const input=document.createElement('input');input.type='url';input.value=stored(chromeKey);input.placeholder='https://your-codespace-7682.app.github.dev/';input.setAttribute('aria-label','Private Codespaces port 7682 preview URL');input.style.width='100%';input.autocomplete='off';input.spellcheck=false;c.append(input);
+  const actions=document.createElement('div');actions.className='row';c.append(actions);
+  btn('Save private preview URL',()=>{try{const target=validateChromePreview(input.value.trim());localStorage.setItem(chromeKey,target);input.value=target;tell('Private Chrome preview URL saved in this browser. No credentials were saved.')}catch(e){tell(e.message)}},actions);
+  link(actions,'Chrome setup guide','https://github.com/ppp65isking/UBos-for-Chrome/blob/main/remote-runner/INTEGRATED-DISCORD.md');
+  browserStatus(c);
+  text(c,'p','Keep port 7682 Private. Open the saved URL in a separate tab and unlock it with the private engine code if you are not already using the Codespaces preview. VNC passwords and engine codes are never saved here.');
+  return;
+ }
  text(c,'p',app.kind==='desktop'?'Real Linux Discord through your personal cloud desktop. This is an independent UBos integration, not an official Discord edition or an embedded Discord window.':'Official command-line tool on your personal Codespace. This UBos launcher is not a desktop GUI port.');
  text(c,'p','Launcher: '+(installed().has(app.id)?'added to this browser':'not added')+' · Linux installation: not verified · remote process: not verified · live connection: not verified.');
  const row=document.createElement('div');row.className='row';c.append(row);btn('UB Store',()=>openApp('ub-store'),row);btn(app.kind==='desktop'?'Open cloud desktop ↗':'Open private terminal ↗',()=>openEndpoint(app.kind==='desktop'),row);link(row,'Official documentation',app.docs);btn('Remove launcher',()=>remove(app),row);
+ if(app.kind==='desktop')browserStatus(c,'/preview/status','Discord');
  endpointUI(c,app.kind==='desktop');
  if(app.kind==='desktop'){
   text(c,'h2','First-time setup');
@@ -59,15 +93,20 @@ function appUI(app,c){
   command(c,'Close Discord first; removal prompts for confirmation','bash remote-runner/discord.sh uninstall');
   text(c,'p','Uninstall removes only managed program files; it does not stop a process or remove Discord login/session data. Audio, microphone, video and screen sharing require separate testing and are not guaranteed by this launcher. A generic diamond is used for this listing; it is not an official Discord icon.');
  }else{
-  text(c,'h2','Install, run, or uninstall on the Codespace');text(c,'p','Use a fresh Bash shell in this repository after pulling main. Review commands before running them. Installation downloads vendor software; AI access requires a supported account. Managed removal leaves projects and account settings intact.');
-  command(c,'Install the remote package','bash remote-runner/apps.sh install '+app.id);command(c,'Launch the real CLI','bash remote-runner/apps.sh run '+app.id);command(c,'Check managed installation','bash remote-runner/apps.sh status '+app.id);command(c,'Uninstall managed remote package','bash remote-runner/apps.sh uninstall '+app.id);
+  text(c,'h2','Install, update, run, or uninstall on the Codespace');text(c,'p','Use a fresh Bash shell in this repository after pulling main. Review commands before running them. Install again to refresh the managed CLI package; the status command prints the installed version when present. Installation downloads vendor software; AI access requires a supported account. Managed removal leaves projects and account settings intact.');
+  command(c,'Install or update the remote package','bash remote-runner/apps.sh install '+app.id);command(c,'Launch the real CLI','bash remote-runner/apps.sh run '+app.id);command(c,'Check installation and version','bash remote-runner/apps.sh status '+app.id);command(c,'Uninstall managed remote package','bash remote-runner/apps.sh uninstall '+app.id);
  }
 }
 function storeUI(c){
- c.className='body';c.replaceChildren();text(c,'h1','UB Store');text(c,'p','Add launchers, then set up the real apps on your personal Codespace. Adding a launcher does not install a Linux package or prove a live connection.');
- const grid=document.createElement('div');grid.className='grid';c.append(grid);const ids=installed();
- for(const app of catalog){const card=document.createElement('article');card.className='card';text(card,'h2',app.name);text(card,'p',app.kind==='desktop'?'Linux GUI · private cloud desktop · Codespaces compute usage':'Remote CLI · personal Codespace required');text(card,'p',ids.has(app.id)?'UBos launcher added · remote package not verified':'Launcher not added · remote package not verified');btn(ids.has(app.id)?'Open setup / launch':'Add launcher',()=>{if(ids.has(app.id)||add(app)){openApp('store-'+app.id);storeUI(c)}},card);if(ids.has(app.id))btn('Remove launcher',()=>remove(app),card);link(card,'Official documentation',app.docs);grid.append(card)}
- text(c,'p','Independent UBos integrations, not vendor-published UBos editions. Codex and Claude artwork is handled by the separate icon module; the Discord listing uses a generic diamond. No icon proves installation or connection status.');
+ c.className='body';c.replaceChildren();text(c,'h1','UB Store');text(c,'p','Search apps or filter by category. Adding a launcher does not install a remote package; use app diagnostics to verify what UBos can check.');
+ const search=document.createElement('input');search.type='search';search.placeholder='Search apps and descriptions';search.setAttribute('aria-label','Search UB Store');search.style.width='100%';c.append(search);
+ const categories=['All',...new Set(catalog.map(app=>app.category||'Developer'))],filters=document.createElement('div');filters.className='row';c.append(filters);let selected='All';
+ const grid=document.createElement('div');grid.className='grid';c.append(grid);
+ const draw=()=>{grid.replaceChildren();const ids=installed(),query=search.value.trim().toLowerCase();for(const app of catalog){const category=app.category||'Developer';if(selected!=='All'&&selected!==category)continue;if(query&&!(app.name+' '+app.kind+' '+category+' '+app.docs).toLowerCase().includes(query))continue;const card=document.createElement('article');card.className='card';text(card,'small',category);text(card,'h2',app.name);text(card,'p',app.kind==='browser'?'Real sandboxed Linux browser · private Codespaces desktop':app.kind==='desktop'?'Linux GUI · private cloud desktop · Codespaces compute usage':'Remote CLI · personal Codespace required');text(card,'p',ids.has(app.id)?'UBos launcher: added · remote installation: '+(app.kind==='browser'?'check diagnostics':'not checked'):'UBos launcher: not added · remote installation: not checked');btn(ids.has(app.id)?'Open diagnostics / launch':'Add launcher',()=>{if(ids.has(app.id)||add(app)){openApp('store-'+app.id);storeUI(c)}},card);if(ids.has(app.id))btn('Remove launcher',()=>remove(app),card);link(card,'Official documentation',app.docs);grid.append(card)}if(!grid.children.length)text(grid,'p','No apps match this search and category.')};
+ for(const category of categories){const filter=btn(category,()=>{selected=category;for(const button of filters.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button===filter));draw()},filters);filter.setAttribute('aria-pressed',String(category===selected))}
+ search.oninput=draw;draw();
+ text(c,'p','Launcher status is stored in this browser. Chrome diagnostics can check installation, desktop readiness and process status only from the authenticated private preview; CLI package status requires its app-specific status command.');
+ text(c,'p','Independent UBos integrations, not vendor-published editions. No listing or icon by itself proves a remote installation or connection.');
  const row=document.createElement('div');row.className='row';c.append(row);btn('Manage apps / connection URLs',()=>settingsUI(openApp('settings').querySelector('.body'),'Apps'),row);btn('Open private terminal ↗',openRemote,row);btn('Open cloud desktop ↗',()=>openEndpoint(true),row);
 }
 apps[remoteId]=[apps.terminal[0],'Remote Terminal Beta'];apps['ub-store']=['▣','UB Store'];

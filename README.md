@@ -11,6 +11,9 @@ UBos 2.0 adds the UB Store, persistent remote-app launchers, app management, and
 - Managed Codespaces helpers to install, launch, check, and uninstall Codex or Claude Code.
 - One-click launch of the saved private Codespaces terminal.
 - Automatic runner startup when a Codespace starts.
+- UB Store search and categories, with a separate Google Chrome launcher alongside the built-in Browser.
+- Private Chrome/Discord runtime diagnostics, managed CLI install/version checks, and an in-memory noVNC clipboard bridge.
+- Additional editable Browser shortcuts for common web destinations.
 
 ### Remote requirements
 - A personal GitHub Codespace.

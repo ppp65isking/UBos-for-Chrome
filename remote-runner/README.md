@@ -2,7 +2,7 @@
 
 This adds a Node/node-pty/WebSocket Linux terminal plus an optional UBos launcher. It does not run a native binary inside WebContainers, automatically start a stopped Codespace, or turn Codespaces into free unlimited hosting. The UBos launcher opens the private terminal in a separate tab so GitHub authentication is top-level, not an iframe/cross-site cookie workaround.
 
-The Codespace also provides a private desktop preview on port 7682. Rebuild once after pulling the container changes to install Google Chrome; thereafter the preview server starts automatically with the Codespace. Open the printed private preview URL, unlock it with the connection code in `desktop-preview.log`, then launch the built-in Browser app to start embedded Chrome. Closing that UBos window stops Chrome. See [INTEGRATED-DISCORD.md](./INTEGRATED-DISCORD.md) for the VNC-password and private-port requirements.
+The Codespace also provides a private desktop preview on port 7682. Rebuild once after pulling the container changes to install Google Chrome; thereafter the preview server starts automatically with the Codespace. Open the printed private preview URL and unlock it with the connection code in `desktop-preview.log`. The built-in Browser remains available; add Google Chrome from UB Store for a separate launcher/window. Both use the real sandboxed Chrome preview. The Chrome profile is persisted in the ignored workspace directory `.ubos/chrome-profile`. See [INTEGRATED-DISCORD.md](./INTEGRATED-DISCORD.md) for the VNC-password and private-port requirements.
 
 ## Start in your existing Codespaces terminal
 
