@@ -32,19 +32,30 @@ async function remove(app){if(!await ask('Remove '+app.name+' launcher?','This r
 function refreshViews(){const store=wins.get('ub-store');if(store)storeUI(store.querySelector('.body'));for(const app of catalog){const w=wins.get('store-'+app.id);if(w)appUI(app,w.querySelector('.body'))}const remote=wins.get(remoteId);if(remote)render(remoteId,remote.querySelector('.body'));const settings=wins.get('settings');if(settings?.querySelector('[data-store-settings]'))settingsUI(settings.querySelector('.body'),'Apps')}
 function command(parent,label,value){const box=document.createElement('div');box.className='card';text(box,'p',label);const code=text(box,'code',value);code.style.cssText='display:block;white-space:pre-wrap;user-select:text;margin:10px 0';btn('Copy command',async()=>{try{await navigator.clipboard.writeText(value);tell('Command copied. Paste it into a fresh Codespaces Bash shell at the repository root, not an active AI prompt.')}catch{tell('Clipboard unavailable. Select and copy the command shown.')}},box);parent.append(box)}
 function openEndpoint(desktop){try{const target=validateEndpoint(stored(desktop?desktopKey:urlKey),desktop?6080:7681,desktop);window.open(target,'_blank','noopener,noreferrer')}catch(e){tell(e.message)}}
-function openChrome(){
- if(/^[a-z0-9-]+-7682[.]app[.]github[.]dev$/.test(location.hostname)){openApp('store-chrome');return}
- try{window.open(validateChromePreview(stored(chromeKey)),'_blank','noopener,noreferrer')}
- catch(e){tell(e.message+' Save the port-7682 preview URL in the Google Chrome app first.')}
-}
-async function chromeStatus(path='/preview/browser/status'){
- try{const response=await fetch(path,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error(response.status===401?'Unlock the private preview first.':'Private preview status unavailable.');const status=await response.json();return status}
+async function chromeStatus(path='/preview/browser/status',base=''){
+ try{const response=await fetch(base+path,{credentials:base?'include':'same-origin',mode:base?'cors':'same-origin',cache:'no-store',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error(response.status===401?'Sign in to GitHub to access the private port.':'Private preview returned HTTP '+response.status+'.');const status=await response.json();return status}
  catch(e){return {error:e.message||'Private preview status unavailable.'}}
 }
-function browserStatus(parent,path='/preview/browser/status',name='Chrome'){
+function browserStatus(parent,path='/preview/browser/status',name='Chrome',base=''){
  const status=text(parent,'p','Checking '+name+' status…');status.setAttribute('role','status');
- const check=async()=>{status.textContent='Checking '+name+' status…';const s=await chromeStatus(path);status.textContent=s.error?name+' status unavailable: '+s.error:name+': '+(s.installed?'installed':'not installed')+(s.version?' · version: '+s.version:'')+' · desktop: '+(s.displayReady?'ready':'not ready')+' · process: '+(s.running?'running':'stopped')+' · visible window: '+(s.windowMapped?'yes':'no');if(s.error)status.dataset.state='unknown';else status.dataset.state=s.installed?'installed':'missing'};
+ const check=async()=>{status.textContent='Checking '+name+' status…';const s=await chromeStatus(path,base);status.textContent=s.error?name+' status unavailable: '+s.error:name+': '+(s.installed?'installed':'not installed')+(s.version?' · version: '+s.version:'')+' · desktop: '+(s.displayReady?'ready':'not ready')+' · process: '+(s.running?'running':'stopped')+' · visible window: '+(s.windowMapped?'yes':'no');if(s.error)status.dataset.state='unknown';else status.dataset.state=s.installed?'installed':'missing'};
  btn('Refresh '+name+' diagnostics',check,parent);check();
+}
+function chromeAppUI(app,c){
+ c.className='body';c.replaceChildren();text(c,'h1','Google Chrome');
+ text(c,'p','Chrome opens inside this UBos app window using your private Codespaces desktop. The built-in Browser remains a separate alternative.');
+ const input=document.createElement('input');input.type='url';input.value=stored(chromeKey);input.placeholder='https://your-codespace-7682.app.github.dev/';input.setAttribute('aria-label','Private Codespaces port 7682 URL');input.autocomplete='off';input.spellcheck=false;input.style.width='100%';c.append(input);
+ const controls=document.createElement('div');controls.className='row';c.append(controls);
+ btn('Save preview URL',()=>{try{const target=validateChromePreview(input.value.trim());localStorage.setItem(chromeKey,target);input.value=target;chromeAppUI(app,c)}catch(e){tell(e.message)}},controls);
+ btn('Open built-in Browser',()=>openApp('browser'),controls);
+ link(controls,'Codespaces','https://github.com/codespaces');
+ text(c,'p','GitHub private-port authentication protects access; there is no UBos connection code. Opening this app starts Chrome if the Codespace and its preview server are already running. A stopped Codespace cannot be awakened by the public UBos page.');
+ let base='';try{base=validateChromePreview(input.value.trim())}catch{}
+ if(base){
+  const statusArea=document.createElement('div');c.append(statusArea);browserStatus(statusArea,'/preview/browser/status','Chrome',base);
+  link(c,'Authorize the private GitHub port (only if prompted)',base);
+  const frame=document.createElement('iframe');frame.title='Google Chrome in UBos';frame.referrerPolicy='no-referrer';frame.allow='clipboard-read; clipboard-write';frame.style.cssText='display:block;width:100%;height:min(70vh,760px);min-height:380px;border:1px solid #8885;border-radius:14px;background:#191c35';frame.src=base+'preview/browser-viewer';c.append(frame);
+ }else text(c,'p','Save the private port-7682 URL once. Chrome will then load automatically inside this window whenever its Codespace is running.');
 }
 function openRemote(){openEndpoint(false)}
 function endpointUI(c,desktop=false){
@@ -64,16 +75,7 @@ function endpointUI(c,desktop=false){
 function appUI(app,c){
  c.className='body';c.replaceChildren();text(c,'h1',app.name);
  if(app.kind==='browser'){
-  text(c,'p','A separate UBos launcher for the real Google Chrome installed in your private Codespace. The built-in Browser remains available as an alternative.');
-  text(c,'p','UBos does not install Chrome when you add this launcher. Chrome is included in the Codespaces devcontainer image; its profile is saved in the ignored workspace folder .ubos/chrome-profile.');
-  const row=document.createElement('div');row.className='row';c.append(row);
-  btn('Open Google Chrome ↗',openChrome,row);btn('Open built-in Browser',()=>openApp('browser'),row);btn('UB Store',()=>openApp('ub-store'),row);
-  const input=document.createElement('input');input.type='url';input.value=stored(chromeKey);input.placeholder='https://your-codespace-7682.app.github.dev/';input.setAttribute('aria-label','Private Codespaces port 7682 preview URL');input.style.width='100%';input.autocomplete='off';input.spellcheck=false;c.append(input);
-  const actions=document.createElement('div');actions.className='row';c.append(actions);
-  btn('Save private preview URL',()=>{try{const target=validateChromePreview(input.value.trim());localStorage.setItem(chromeKey,target);input.value=target;tell('Private Chrome preview URL saved in this browser. No credentials were saved.')}catch(e){tell(e.message)}},actions);
-  link(actions,'Chrome setup guide','https://github.com/ppp65isking/UBos-for-Chrome/blob/main/remote-runner/INTEGRATED-DISCORD.md');
-  browserStatus(c);
-  text(c,'p','Keep port 7682 Private. Open the saved URL in a separate tab and unlock it with the private engine code if you are not already using the Codespaces preview. VNC passwords and engine codes are never saved here.');
+  chromeAppUI(app,c);
   return;
  }
  text(c,'p',app.kind==='desktop'?'Real Linux Discord through your personal cloud desktop. This is an independent UBos integration, not an official Discord edition or an embedded Discord window.':'Official command-line tool on your personal Codespace. This UBos launcher is not a desktop GUI port.');
@@ -120,5 +122,5 @@ settingsUI=function(c,category){
  btn('Refresh app list',async()=>{try{await reload();if(c.isConnected&&c.querySelector('[data-store-settings]'))settingsUI(c,'Apps')}catch(e){tell(e.message)}},section);text(section,'p','Removing a remote launcher does not stop or uninstall its Linux app. Use the setup page for manual managed uninstall commands. Built-in apps and local Node packages are not removed here.');
 };
 for(const [id,label]of [['ub-store','▣ UB Store'],[remoteId,'Remote Terminal Beta']])btn(label,()=>openApp(id),document.querySelector('#shortcuts'));
-window.addEventListener('storage',e=>{if(e.key===null||[key,urlKey,desktopKey].includes(e.key)){sync();refreshViews()}});sync();
+window.addEventListener('storage',e=>{if(e.key===null||[key,urlKey,desktopKey,chromeKey].includes(e.key)){sync();refreshViews()}});sync();
 })();

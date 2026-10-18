@@ -17,6 +17,8 @@ UBos 2.0 adds the UB Store, persistent remote-app launchers, app management, and
 
 The regular public site can add the Google Chrome launcher, but real Chrome runs only in the authenticated private Codespaces desktop preview on port 7682. The built-in Browser remains available without that preview.
 
+In UB Store → Google Chrome, save the private port-7682 URL once; the viewer opens inside the UBos app window and starts Chrome whenever the Codespace and preview are already running. GitHub private-port authentication protects access, so there is no UBos engine connection code. UBos cannot wake a stopped Codespace from the static public page.
+
 ### Remote requirements
 - A personal GitHub Codespace.
 - Port 7681 kept Private.

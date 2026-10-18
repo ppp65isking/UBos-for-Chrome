@@ -21,5 +21,5 @@ if ! kill -0 "$pid" 2>/dev/null; then
   echo "UBos desktop preview failed. Review the private log: $state/desktop-preview.log" >&2
   exit 1
 fi
-echo "UBos desktop preview started. Its connection code is in the private log: $state/desktop-preview.log"
-echo 'Keep port 7682 Private. Chrome starts when the embedded UBos Browser opens and closes with that window.'
+echo "UBos desktop preview started. Startup diagnostics are in the private log: $state/desktop-preview.log"
+echo 'Keep port 7682 Private. GitHub authentication protects it; no engine connection code is used. Chrome starts from its UBos app window.'
