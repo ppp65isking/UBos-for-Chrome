@@ -15,6 +15,8 @@ UBos 2.0 adds the UB Store, persistent remote-app launchers, app management, and
 - Private Chrome/Discord runtime diagnostics, managed CLI install/version checks, and an in-memory noVNC clipboard bridge.
 - Additional editable Browser shortcuts for common web destinations.
 
+The regular public site can add the Google Chrome launcher, but real Chrome runs only in the authenticated private Codespaces desktop preview on port 7682. The built-in Browser remains available without that preview.
+
 ### Remote requirements
 - A personal GitHub Codespace.
 - Port 7681 kept Private.
