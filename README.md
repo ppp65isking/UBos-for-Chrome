@@ -12,12 +12,13 @@ UBos 2.0 adds the UB Store, persistent remote-app launchers, app management, and
 - One-click launch of the saved private Codespaces terminal.
 - Automatic runner startup when a Codespace starts.
 - UB Store search and categories, with a separate Google Chrome launcher alongside the built-in Browser.
+- A direct Google Chrome desktop shortcut that embeds the private Codespaces Chrome viewer, plus 2048 and two-player Tic-Tac-Toe in Games.
 - Private Chrome/Discord runtime diagnostics, managed CLI install/version checks, and an in-memory noVNC clipboard bridge.
 - Additional editable Browser shortcuts for common web destinations.
 
-The regular public site can add the Google Chrome launcher, but real Chrome runs only in the authenticated private Codespaces desktop preview on port 7682. The built-in Browser remains available without that preview.
+Real Chrome runs only in the authenticated private Codespaces desktop preview on port 7682; it is not a browser process running on GitHub Pages. Save the private port-7682 URL in the desktop's Google Chrome app to open the real browser inside UBos. The built-in Browser remains available without that preview.
 
-In UB Store → Google Chrome, save the private port-7682 URL once; the viewer opens inside the UBos app window and starts Chrome whenever the Codespace and preview are already running. GitHub private-port authentication protects access, so there is no UBos engine connection code. UBos cannot wake a stopped Codespace from the static public page.
+The Chrome preview shares the Codespace desktop and stores its browser profile in `.ubos/chrome-profile`. Keep its forwarded port Private, replace the default VNC password, and do not share the Codespace. This is an experimental preview, not a security-reviewed environment; avoid signing into a primary or sensitive account until it has been independently reviewed. UBos cannot wake a stopped Codespace from the static public page.
 
 ### Remote requirements
 - A personal GitHub Codespace.

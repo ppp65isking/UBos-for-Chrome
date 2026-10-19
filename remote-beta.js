@@ -26,7 +26,7 @@ async function ask(title,message){if(window.ubosDialog)return window.ubosDialog(
 function text(parent,tag,value){const e=document.createElement(tag);e.textContent=value;parent.append(e);return e}
 function link(parent,label,href){const a=document.createElement('a');a.textContent=label;a.href=href;a.target='_blank';a.rel='noopener noreferrer';parent.append(a);return a}
 function closeWindow(id){const w=wins.get(id);if(!w)return;const close=w.querySelector('.window-tools button[title="Close"]');if(close)close.click();else{w.remove();wins.delete(id)}}
-function sync(){const wanted=installed();for(const app of catalog){const id='store-'+app.id;let shortcut=document.querySelector('[data-store-app="'+app.id+'"]');if(wanted.has(app.id)){apps[id]=['◇',app.name];if(!shortcut){shortcut=btn('◇ '+app.name,()=>openApp(id),document.querySelector('#shortcuts'));shortcut.dataset.storeApp=app.id}}else{closeWindow(id);delete apps[id];shortcut?.remove()}}launcher();dock()}
+function sync(){const wanted=installed();for(const app of catalog){const id='store-'+app.id;let shortcut=document.querySelector('[data-store-app="'+app.id+'"]');if(app.id==='chrome'&&!shortcut){shortcut=btn('◇ Google Chrome',()=>{apps[id]=['◇',app.name];openApp(id)},document.querySelector('#shortcuts'));shortcut.dataset.storeApp=app.id}if(wanted.has(app.id)){apps[id]=['◇',app.name];if(!shortcut){shortcut=btn('◇ '+app.name,()=>openApp(id),document.querySelector('#shortcuts'));shortcut.dataset.storeApp=app.id}else shortcut.onclick=()=>openApp(id)}else{closeWindow(id);delete apps[id];if(app.id==='chrome'){shortcut.onclick=()=>{apps[id]=['◇',app.name];openApp(id)}}else shortcut?.remove()}}launcher();dock()}
 function add(app){const ids=installed();ids.add(app.id);if(!save(key,[...ids]))return false;sync();return true}
 async function remove(app){if(!await ask('Remove '+app.name+' launcher?','This removes its UBos launcher only. It does not stop a remote app, uninstall its Linux package, delete account data, forget connection URLs, or stop the Codespace.'))return;const ids=installed();ids.delete(app.id);if(!save(key,[...ids]))return;sync();refreshViews()}
 function refreshViews(){const store=wins.get('ub-store');if(store)storeUI(store.querySelector('.body'));for(const app of catalog){const w=wins.get('store-'+app.id);if(w)appUI(app,w.querySelector('.body'))}const remote=wins.get(remoteId);if(remote)render(remoteId,remote.querySelector('.body'));const settings=wins.get('settings');if(settings?.querySelector('[data-store-settings]'))settingsUI(settings.querySelector('.body'),'Apps')}
@@ -56,6 +56,12 @@ function chromeAppUI(app,c){
   link(c,'Authorize the private GitHub port (only if prompted)',base);
   const frame=document.createElement('iframe');frame.title='Google Chrome in UBos';frame.referrerPolicy='no-referrer';frame.allow='clipboard-read; clipboard-write';frame.style.cssText='display:block;width:100%;height:min(70vh,760px);min-height:380px;border:1px solid #8885;border-radius:14px;background:#191c35';frame.src=base+'preview/browser-viewer';c.append(frame);
  }else text(c,'p','Save the private port-7682 URL once. Chrome will then load automatically inside this window whenever its Codespace is running.');
+}
+function enhanceGames(c){
+ const frame=c.querySelector('iframe');if(!frame)return;
+ let attempts=0,timer;
+ const inject=()=>{timer=setInterval(()=>{if(!frame.isConnected){clearInterval(timer);return}try{const w=frame.contentWindow,d=frame.contentDocument;if(!d||!w.ubosGaming?.open){if(++attempts>=200){clearInterval(timer);tell('New games could not load. Reload UBos to retry.')}return}clearInterval(timer);const script=d.createElement('script');script.src='games-update.js';script.onerror=()=>tell('New games could not load. Reload UBos to retry.');d.body.append(script)}catch(e){clearInterval(timer);tell('New games could not load: '+e.message)}},50)};
+ frame.addEventListener('load',inject,{once:true});
 }
 function openRemote(){openEndpoint(false)}
 function endpointUI(c,desktop=false){
@@ -112,7 +118,7 @@ function storeUI(c){
  const row=document.createElement('div');row.className='row';c.append(row);btn('Manage apps / connection URLs',()=>settingsUI(openApp('settings').querySelector('.body'),'Apps'),row);btn('Open private terminal ↗',openRemote,row);btn('Open cloud desktop ↗',()=>openEndpoint(true),row);
 }
 apps[remoteId]=[apps.terminal[0],'Remote Terminal Beta'];apps['ub-store']=['▣','UB Store'];
-render=function(id,c){if(id==='ub-store'){storeUI(c);return}const app=catalog.find(a=>'store-'+a.id===id);if(app){appUI(app,c);return}if(id===remoteId){c.className='body';c.replaceChildren();text(c,'h1','Remote Terminal');endpointUI(c);return}oldRender(id,c)};
+render=function(id,c){if(id==='ub-store'){storeUI(c);return}const app=catalog.find(a=>'store-'+a.id===id);if(app){appUI(app,c);return}if(id===remoteId){c.className='body';c.replaceChildren();text(c,'h1','Remote Terminal');endpointUI(c);return}oldRender(id,c);if(id==='games')enhanceGames(c)};
 settingsUI=function(c,category){
  oldSettings(c,category);const nav=c.querySelector('.settings nav'),section=c.querySelector('.settings section');if(!nav||!section)return;btn('Apps',()=>settingsUI(c,'Apps'),nav).className=category==='Apps'?'chosen':'';if(category!=='Apps')return;
  section.replaceChildren();section.dataset.storeSettings='true';text(section,'h1','Apps');btn('Open UB Store',()=>openApp('ub-store'),section);text(section,'h2','Remote-app launchers');
