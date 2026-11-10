@@ -1,0 +1,94 @@
+/* Windows 11-style Start menu theme for rofi (drun). */
+/* Dark, rounded, opens above the centered taskbar. */
+
+configuration {
+    show-icons: true;
+    icon-theme: "Humanity";
+    drun-display-format: "{name}";
+    display-drun: "Start";
+    font: "sans 11";
+    sort: true;
+}
+
+* {
+    background-color: #202020;
+    text-color: #e6e6e6;
+    border-color: #3a3a3a;
+    font: "sans 11";
+}
+
+window {
+    location: south;
+    anchor: south;
+    y-offset: -62px;
+    width: 440px;
+    border-width: 1px;
+    border-color: #3a3a3a;
+    border-radius: 12px;
+    background-color: #202020;
+    padding: 10px;
+}
+
+mainbox {
+    background-color: transparent;
+    children: [inputbar, listview];
+    spacing: 8px;
+}
+
+inputbar {
+    background-color: #2b2b2b;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: #3a3a3a;
+    padding: 6px 10px;
+    children: [prompt, entry];
+}
+
+prompt {
+    background-color: transparent;
+    text-color: #4cc2ff;
+}
+
+entry {
+    background-color: transparent;
+    text-color: #ffffff;
+    placeholder: "Type here to search";
+    placeholder-color: #888888;
+}
+
+listview {
+    background-color: transparent;
+    columns: 1;
+    lines: 10;
+    spacing: 2px;
+    scrollbar: true;
+    fixed-height: false;
+}
+
+element {
+    background-color: transparent;
+    text-color: #e6e6e6;
+    border-radius: 6px;
+    padding: 6px 8px;
+}
+
+element-icon {
+    size: 26px;
+}
+
+element-text {
+    background-color: transparent;
+    text-color: inherit;
+}
+
+element selected {
+    background-color: #2f6cb5;
+    text-color: #ffffff;
+}
+
+scrollbar {
+    background-color: #2b2b2b;
+    handle-color: #555555;
+    handle-width: 6px;
+    border-radius: 3px;
+}
