@@ -10,6 +10,10 @@ here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 log="${XDG_STATE_HOME:-$HOME/.local/state}/ubos/win11-taskbar.log"
 mkdir -p "$(dirname -- "$log")" 2>/dev/null || true
 exec >>"$log" 2>&1 || true
+# Serialize panel restarts: two concurrent runs must not both start tint2.
+if exec 6>"${XDG_STATE_HOME:-$HOME/.local/state}/ubos/win11-taskbar.lock" 2>/dev/null; then
+  flock -n 6 2>/dev/null || exit 0
+fi
 echo "[$(date -Is)] win11-taskbar: repo=$here"
 
 # Wait for the desktop X display (desktop-lite runs TigerVNC on :1).
@@ -41,7 +45,20 @@ fi
 
 # Install the configs from the repo (rebuild-safe copies).
 mkdir -p "$HOME/.config/tint2" "$HOME/.config/rofi" 2>/dev/null || true
-sed "s|__TASKBAR_DIR__|$here|g" "$here/tint2rc" > "$HOME/.config/tint2/tint2rc" 2>/dev/null || true
+# Install the panel config only when it changed, via a temp file plus an
+# atomic rename: a running tint2 reloads its config on change, so it must
+# never see a half-written file, and two concurrent runs must not corrupt it.
+_tint2_tmp="$HOME/.config/tint2/tint2rc.tmp.$$"
+if sed "s|__TASKBAR_DIR__|$here|g" "$here/tint2rc" > "$_tint2_tmp" 2>/dev/null && [ -s "$_tint2_tmp" ]; then
+  if ! cmp -s "$_tint2_tmp" "$HOME/.config/tint2/tint2rc" 2>/dev/null; then
+    mv "$_tint2_tmp" "$HOME/.config/tint2/tint2rc" 2>/dev/null || true
+    echo "win11-taskbar: installed tint2 config"
+  else
+    rm -f "$_tint2_tmp"
+  fi
+else
+  rm -f "$_tint2_tmp"
+fi
 cp -f "$here/rofi-win11.rasi" "$HOME/.config/rofi/win11.rasi" 2>/dev/null || true
 chmod +x "$here/start-menu.sh" "$here/win11-taskbar.sh" 2>/dev/null || true
 
@@ -61,7 +78,8 @@ fi
 if pgrep -x tint2 >/dev/null 2>&1; then
     echo "win11-taskbar: tint2 already running"
 else
-    nohup tint2 -c "$HOME/.config/tint2/tint2rc" >/dev/null 2>&1 &
+  # Log tint2 output to the taskbar log instead of /dev/null, so a crash no longer vanishes without a trace.
+  nohup tint2 -c "$HOME/.config/tint2/tint2rc" >>"$log" 2>&1 6>&- 7>&- 8>&- 9>&- &
     echo "win11-taskbar: tint2 started (pid $!)"
 fi
 echo "[$(date -Is)] win11-taskbar: done"

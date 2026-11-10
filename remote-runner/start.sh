@@ -5,26 +5,24 @@ runner="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 state="${XDG_RUNTIME_DIR:-/tmp}/ubos-remote-$UID"
 mkdir -p "$state"; chmod 700 "$state"
 exec 9>"$state/start.lock"
-flock -n 9 || { echo 'UBos runner startup is already in progress.'; exit 0; }
+flock -n 9 || echo "UBos runner startup is already in progress; continuing with the best-effort desktop steps." >&2
 pid=''
 if [[ -r "$state/runner.pid" ]]; then read -r pid < "$state/runner.pid" || true; fi
-if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && [[ -r "/proc/$pid/cmdline" ]] && tr '\0' '\n' < "/proc/$pid/cmdline" | grep -Fxq -- "$runner/server.mjs"; then echo 'UBos remote runner is already running.'; exit 0; fi
+if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && [[ -r "/proc/$pid/cmdline" ]] && tr '\0' '\n' < "/proc/$pid/cmdline" | grep -Fxq -- "$runner/server.mjs"; then echo 'UBos remote runner is already running.'; _runner_running=1; fi
 cd "$runner"
-if [[ ! -d node_modules/node-pty || ! -d node_modules/ws || ! -d node_modules/@xterm/xterm ]]; then echo 'Installing runner dependencies...'; npm install --no-audit --no-fund; fi
-umask 077
-nohup node "$runner/server.mjs" > "$state/runner.log" 2>&1 9>&- &
-pid=$!; printf '%s\n' "$pid" > "$state/runner.pid"
-sleep 2
-if ! kill -0 "$pid" 2>/dev/null; then echo "Runner failed. Review the private log: $state/runner.log" >&2; exit 1; fi
-echo "UBos runner started. Connection code is in the private log: $state/runner.log"
-echo 'Keep port 7681 Private. This starts the runner, not a stopped Codespace, and does not enable automatic Codespace shutdown.'
-bash "$runner/desktop-preview-start.sh"
+# Desktop first: the taskbar and desktop size must not depend on the runner.
+# A broken runner (for example an unloadable node-pty) used to abort postStart before this block ran.
+bash "$runner/desktop-preview-start.sh" 9>&- || true
 
 # Windows-11-style taskbar (tint2 panel + rofi Start menu) for the Linux desktop.
 # The launcher waits for the desktop display itself and is idempotent, so it
 # is safe on every postStart and after a rebuild. Best effort: never fail startup.
 if [[ -x "$runner/taskbar/win11-taskbar.sh" ]]; then
-  nohup bash "$runner/taskbar/win11-taskbar.sh" >>"$state/win11-taskbar.log" 2>&1 &
+  nohup bash "$runner/taskbar/win11-taskbar.sh" >>"$state/win11-taskbar.log" 2>&1 9>&- &
+  # Watchdog: relaunch tint2 (and restore 1360x768) if it ever goes away.
+  if [[ -x "$runner/taskbar/tint2-watchdog.sh" ]]; then
+    nohup bash "$runner/taskbar/tint2-watchdog.sh" >>"$state/tint2-watchdog.log" 2>&1 9>&- &
+  fi
 fi
 
 # Auto-fit for a fresh noVNC connection (Chromebook-size desktop).
@@ -60,3 +58,12 @@ if ! grep -qF "[app] (tint2)" "$_apps" 2>/dev/null; then
   DISPLAY="$_desktop" fluxbox-remote Reconfigure 2>/dev/null || true
 fi
 unset _desktop _i _novnc_ui _apps
+# Start the runner only if it is not already running; the desktop steps above always run.
+if [[ -z "${_runner_running:-}" ]]; then
+if [[ ! -d node_modules/node-pty || ! -d node_modules/ws || ! -d node_modules/@xterm/xterm ]]; then echo "Installing runner dependencies..."; timeout 300 npm install --no-audit --no-fund || true; fi; if ! node -e 'require("node-pty")' 2>/dev/null; then echo "node-pty does not load in this container; rebuilding it from source..."; timeout 300 npm rebuild node-pty --no-audit --no-fund 2>&1 | tail -3 || true; fi
+umask 077
+nohup node "$runner/server.mjs" > "$state/runner.log" 2>&1 9>&- &
+pid=$!; printf '%s\n' "$pid" > "$state/runner.pid"
+sleep 2
+if ! kill -0 "$pid" 2>/dev/null; then echo "Runner failed to stay up. Continuing without it; review the private log: $state/runner.log" >&2; else echo "UBos runner started. Connection code is in the private log: $state/runner.log"; echo "Keep port 7681 Private. This starts the runner, not a stopped Codespace, and does not enable automatic Codespace shutdown."; fi
+fi
